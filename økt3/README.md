@@ -5,3 +5,5 @@ piltasser for å gå, (ned crouch og crouchwalk)
 Leftshift for å løpe
 Rightshift for å rulle
 Space for å hoppe(Ingen bakke så du bare forsvinner)
+
+Implementert friksjon, raskere løping jo lenger du løper og nytt bevegelsesystem (dynamiske verdier istedet for fastsatte)
