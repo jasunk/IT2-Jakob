@@ -1,0 +1,1 @@
+valgomat funker ikke, tidlige stages
