@@ -13,7 +13,6 @@ avgAccuracy = 0
 #main game loop
 def newGame():
     global score, avgAccuracy
-    print("New country:")
     randIndex = r.randint(0,len(landData)-1)
     tries=3
     answerStrings= []
@@ -58,7 +57,7 @@ def newGame():
             tries-=1
     else:
         print("U suck")
-        print()
+
         newGame()
 
 newGame()
