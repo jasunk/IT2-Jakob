@@ -37,8 +37,12 @@ def newGame():
         for letter in answer:
             if letter in answerStrings[0]:
                 correctLetters +=1
+            else:
+                correctLetters -=0.5
 
-        avgAccuracy =( avgAccuracy + correctLetters/len(answerStrings[0])*100)/2
+        avgAccuracy =( avgAccuracy + correctLetters/len(answerStrings[0])*100)
+        if score>0 or tries<3:
+            avgAccuracy = avgAccuracy/2
 
         #print(f"Your answer was {correctLetters/len(answerString)*100:.2f} ish % correct")
 
