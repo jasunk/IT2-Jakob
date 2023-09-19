@@ -14,6 +14,8 @@ from collections import Counter
 i = Image.open("bilder/birk.jpg")
 iar = np.array(i)
 
+
+
 #henter inn eksempler fra "læringsett"
 def createExamples():
     #lager meg en ny fil med navn eksempler, og skal fylle den med pikselverdier for hvert tall
@@ -105,10 +107,9 @@ def whatNumIsThis(filePath):
             print(str(e))
 
     #sjekker hvilket tall som passer best, (flest utslag)
-    print(matchedAr)
+    #print(matchedAr)
     x = Counter(matchedAr)
-    print(x)
-    print(f"Eg tror lowkey heighkey at tallet du skrev er {x[0]}")
+    print(f"Eg tror lowkey heighkey at tallet du skrev er {x.most_common()[0][0]}")
 
 
 createExamples()
