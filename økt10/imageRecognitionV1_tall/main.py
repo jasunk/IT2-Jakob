@@ -100,6 +100,7 @@ def whatNumIsThis(filePath):
             eksempelTeller+=1
             #for hver verdi som er lik, legges navn på tall til i array
             while x < len(eachPixEx):
+
                 if eachPixEx[x] == eachPixInQ[x]:
                     matchedAr.append(int(currentNum))
 
@@ -113,6 +114,7 @@ def whatNumIsThis(filePath):
     #sjekker hvilket tall som passer best, (flest utslag)
     #print(matchedAr)
     print("100% beregnet")
+    print()
     x = Counter(matchedAr)
     print(x)
     print(f"Eg tror lowkey highkey at tallet du skrev er {x.most_common()[0][0]}")
