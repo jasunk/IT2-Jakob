@@ -1,12 +1,11 @@
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import time
 from statistics import mean
 from PIL import Image
 import numpy as np
 
-import time
+
 from collections import Counter
 
 #Åpner bilde, omgjør det til array med piksler (png gir 4 verdier for rgb, jpg gir 3)
@@ -85,7 +84,9 @@ def whatNumIsThis(filePath):
 
     inQuestion = str(iarl)
 
+    eksempelTeller = 0
     for eachExample in loadExamps:
+        print(f"{eksempelTeller/len(loadExamps)*100:.2f}% beregnet")
         try:
             #henter ut nåværende tall lest fra treningssett og arrayen som tilhører
             splitted  = eachExample.split('::')
@@ -96,20 +97,25 @@ def whatNumIsThis(filePath):
             eachPixInQ = inQuestion.split('],')
 
             x = 0
-
+            eksempelTeller+=1
             #for hver verdi som er lik, legges navn på tall til i array
             while x < len(eachPixEx):
                 if eachPixEx[x] == eachPixInQ[x]:
                     matchedAr.append(int(currentNum))
 
+
                 x+=1
+
         except Exception as e:
-            print(str(e))
+            l = (str(e))
+
 
     #sjekker hvilket tall som passer best, (flest utslag)
     #print(matchedAr)
+    print("100% beregnet")
     x = Counter(matchedAr)
-    print(f"Eg tror lowkey heighkey at tallet du skrev er {x.most_common()[0][0]}")
+    print(x)
+    print(f"Eg tror lowkey highkey at tallet du skrev er {x.most_common()[0][0]}")
 
 
 createExamples()
