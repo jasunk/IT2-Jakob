@@ -67,7 +67,7 @@ class gameSprite(py.sprite.Sprite):
 active = False
 guessedLetters = []
 state =""
-while state != "Du tapte mann":
+while True:
 
     gameSurf.fill("beige")
     guessingString=""
@@ -76,7 +76,7 @@ while state != "Du tapte mann":
     if checkWord((guessingString)):
         gameSurf.fill("green")
         state="Yoooo du vant!"
-    if state == "Du tapte mann":
+    if state != "Yoooo du vant!" and state != "":
         gameSurf.fill("red")
 
     displaySprite = gameSprite(WW/2-200,-100)
@@ -86,7 +86,7 @@ while state != "Du tapte mann":
             sys.exit()
         if e.type ==KEYDOWN:
 
-            if checkForLetter(str(e.unicode)):
+            if checkForLetter(str(e.unicode)) and state=="":
                 for ind in checkForLetter(str(e.unicode)):
                     knownLetters[ind] = str(e.unicode)
 
@@ -95,7 +95,7 @@ while state != "Du tapte mann":
                 spriteNum+=1
                 gameSurf.fill("red")
             else:
-                state="Du tapte mann"
+                state=f"Du tapte mann, ordet var {currentWord.word}"
 
 
     ordStreker = []
