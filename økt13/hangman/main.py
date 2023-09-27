@@ -8,24 +8,14 @@ WW=1000
 WH=500
 gameSurf = py.display.set_mode((WW,WH))
 spriteNum = 0
-guess = "a"
+
 clock = py.time.Clock()
 
 currentWord = w.randomWord()
-print(currentWord.word, currentWord.length)
+
 
 base_font = py.font.Font(None, 32)
-user_text = ''
 
-
-input_rect = py.Rect(200, 300, 140, 32)
-
-
-color_active = py.Color('lightskyblue3')
-
-
-color_passive = py.Color('chartreuse4')
-color = color_passive
 
 def checkForLetter(letter):
     indexOfLetter = []
@@ -103,6 +93,7 @@ while True:
     grense = (WW/3)*2
     x_pos=(WW-grense)/(currentWord.length)+(grense/2)
     toAddToX=0
+
     for i in range(0,currentWord.length):
         ordStreker.append(letterPlace(x_pos+toAddToX,400))
         ordXvals.append(x_pos+toAddToX)
@@ -124,7 +115,6 @@ while True:
     for letter in guessedLetters:
         stringAvGjett += letter+", "
 
-
     guessedDisp = base_font.render(stringAvGjett, True, (0, 0, 0))
     gameSurf.blit(guessedDisp, (100, 225))
 
@@ -135,8 +125,9 @@ while True:
     tut = base_font.render("Skriv for å gjette", True, (0, 0, 0))
 
     gameSurf.blit(tut, (0, 475))
-    clock.tick(12)
-
 
     displaySprite.draw()
+
+    clock.tick(12)
+
     py.display.update()
