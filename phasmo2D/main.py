@@ -1,7 +1,7 @@
 import pygame as py
 from pygame.locals import *
 import time, random, sys
-import settings, player, ghost, level, camera
+import settings, player, ghostV1, level, camera, levelCollection
 
 mixer = py.mixer
 mixer.init()
@@ -16,31 +16,32 @@ winWidth, winHeigth = settings.get_window()
 
 gameSurf = py.display.set_mode((winWidth,winHeigth))
 
-currentGhost = ghost.Ghost(
-    10,
-    [1,2,3],
-    50,
-    level.Level(),
-    "heii",
-    [400,300]
-)
+#currentGhost = ghostV1.Ghost(
+#    10,
+#    [1,2,3],
+#    50,
+#    level.Level(),
+#    "heii",
+#    [400,300]
+#)
 cam = camera.Camera([0,0])
-currentGhost.newRoamPos()
+#currentGhost.newRoamPos()
+p1 = player.Player(cam,gameSurf, 5,1,[])
+world = level.RoomCollection(levelCollection.level1, gameSurf, cam)
+world.collisionFind()
 while True:
-    gameSurf.fill("gray")
+    gameSurf.fill("black")
     for e in py.event.get():
         if e.type == QUIT:
             py.quit()
             sys.exit()
-        if e.type == KEYDOWN:
-            if e.unicode =="w":
-                cam.updatePos(0,10)
-            if e.unicode=="s":
-                cam.updatePos(0,-10)
 
-    currentGhost.room.draw(gameSurf,cam)
-    currentGhost.goToNewPos()
-    currentGhost.draw(gameSurf,cam)
 
+    world.draw()
+    p1.update()
     py.display.update()
     clock.tick(60)
+
+#currentGhost.room.draw(gameSurf,cam)
+#currentGhost.goToNewPos()
+#currentGhost.draw(gameSurf,cam)
