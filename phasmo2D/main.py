@@ -26,7 +26,7 @@ gameSurf = py.display.set_mode((winWidth,winHeigth))
 #)
 cam = camera.Camera([0,0])
 #currentGhost.newRoamPos()
-p1 = player.Player(cam,gameSurf, 5,1,[])
+p1 = player.Player(cam,gameSurf, 3,1,[])
 world = level.RoomCollection(levelCollection.level1, gameSurf, cam)
 world.collisionFind()
 while True:
