@@ -50,11 +50,12 @@ class Player(py.sprite.Sprite):
         self.frame = 0
         self.currentAnim = "idleDown"
         self.frameFreq = 0
-        self.frameTresh = 8
+        self.frameTresh = 6
         self.dir = "Down"
 
     def animate(self):
-        if self.frameFreq==self.frameTresh:
+        print("hei")
+        if self.frameFreq>=self.frameTresh:
             self.frameFreq=0
             if self.frame <4:
                 self.frame +=1
@@ -71,16 +72,18 @@ class Player(py.sprite.Sprite):
         if pressedKeys[K_LSHIFT]:
             self.runCooldown-=0.01
             if self.runCooldown>0:
-                speedToUse = self.speed*2
-                self.frameTresh = 4
+                speedToUse = self.speed*2.5
+                self.frameTresh = 3
 
             else:
                 speedToUse = self.speed
-                self.frameTresh = 8
+                self.frameTresh = 6
         else:
-            speedToUse = self.speed
-            self.frameTresh = 8
+            speedToUse = self.speed*1.5
+            self.frameTresh = 6
             self.runCooldown = 3
+
+
         if pressedKeys[K_a]:
             self.cam.updatePos(speedToUse, 0)
             self.currentAnim = "walkLeft"
@@ -103,7 +106,7 @@ class Player(py.sprite.Sprite):
 
     def draw(self):
         self.plane.blit(self.image, (settings.get_window()[0]/2-50, settings.get_window()[1]/2-50))
-        self.plane.blit(py.transform.scale(py.image.load("sprites/mørke.png"),(1280*2,720*2)), (-555,-330))
+        #self.plane.blit(py.transform.scale(py.image.load("sprites/mørke.png"),(1280*2,720*2)), (-555,-330))
 
     def update(self):
         self.controls()
