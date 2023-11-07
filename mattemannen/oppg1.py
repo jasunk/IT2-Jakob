@@ -35,7 +35,7 @@ def antOverNull(start,slutt):
 
     overNull = []
     for i in range(int(start),int(slutt)+1):
-        if T(i)>0:
+        if T(i) > 0:
             overNull.append(i)
 
     return (len(overNull)*30)
