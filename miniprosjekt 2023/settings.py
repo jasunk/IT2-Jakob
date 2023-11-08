@@ -5,3 +5,7 @@ colors = {
     "HP":"#9F7E69"
 }
 WW, WH = 1000, 800
+
+FPS = 30
+
+respondToMouse = True

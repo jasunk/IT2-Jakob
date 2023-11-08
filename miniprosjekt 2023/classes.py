@@ -52,11 +52,35 @@ spriteType = {
 
 
 
+class Background:
+
+    def __init__(self):
+        self.pos1 = [-12, 0]
+        self.pos2 = [-20, -300]
+        self.pos3 =  [-13, -300]
+        self.spriteGroup = py.sprite.Group()
+        self.spriteGroup.add()
+        self.lengstBak = py.transform.scale(py.image.load("sprites/Platformer - desert/Background/BG-sky.png"),(1024, 1024))
+        self.middels   = py.transform.scale(py.image.load("sprites/Platformer - desert/Background/BG-mountains.png"),(1024, 1024))
+        self.framst    = py.transform.scale(py.image.load("sprites/Platformer - desert/Background/BG-ruins.png"),(1024, 1024))
+
+
+    def movePic(self, mousePos):
+        self.pos1 = [(-12),0]
+        self.pos2 = [(-20-(mousePos[0]-settings.WW/2)/65),-300]
+        self.pos3 = [(-13-(mousePos[0]-settings.WW/2)/30),-300]
+    def update(self, surf):
+
+        surf.blit(self.lengstBak, (self.pos1[0], self.pos1[1]))
+        surf.blit(self.middels, (self.pos2[0], self.pos2[1]))
+        surf.blit(self.framst, (self.pos3[0], self.pos3[1]))
+
+
 
 #Klasse som håndterer tegning og animasjon av monstre
 class SpriteHandler():
 
-    def __init__(self, spriteNum, player=False):
+    def __init__(self, spriteNum,  player=False):
         self.spriteNum = spriteNum
         self.frame = 0
         self.counter = 0
@@ -64,21 +88,26 @@ class SpriteHandler():
         self.player = player
         self.pos = [0,0]
 
+
+
     def setState(self, state):
         self.frame = 0
         self.state = state
 
-    def draw(self, plane):
+    def draw(self, plane, mousepos):
         imageToDraw = spriteType[self.spriteNum][self.state][self.frame]
         #flip sprite
         if not self.player:
             self.pos = [550, settings.WH/2]
             imageToDraw = py.transform.flip(imageToDraw,1,0)
         else:
-            self.pos = [350, settings.WH/2]
+            self.pos = [330, settings.WH/2]
 
-        plane.blit(imageToDraw, (self.pos[0], self.pos[1]))
-    def update(self, plane):
+        if settings.respondToMouse:
+            plane.blit(imageToDraw, (self.pos[0]-mousepos[0], self.pos[1]-mousepos[1]))
+        else:
+            plane.blit(imageToDraw, (self.pos[0], self.pos[1]))
+    def update(self, plane, mousepos):
         if self.counter<3:
             self.counter+=1
         else:
@@ -92,7 +121,7 @@ class SpriteHandler():
 
 
 
-        self.draw(plane)
+        self.draw(plane, mousepos)
 
 
 
@@ -115,27 +144,37 @@ class PokerMann:
         self.dead = False
 
     def useAbility(self, index):
-        if not self.dead:
+
+        if not self.dead and self.yourTurn:
             self.yourTurn=False
             if not self.abilities[index].use():
                 if not self.playable:
                     self.particles.append(DamageNumber("Bommet", [5,-5], [580, 400]))
+                    if self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
+                        self.particles.append(Particle([15,15], [580, 430], [-130, -5], "black", 3, [0,-20], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
+
                 else:
                     self.particles.append(DamageNumber("Bommet", [-5,-5], [380, 400]))
+                    if self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
+                        self.particles.append(Particle([15,15], [380, 430], [130, -5], "black", 3, [0,-20], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
+            elif self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
+
+                if not self.playable:
+                    self.particles.append(Particle([15,15], [580, 430], [-250, -55], "black", 2.5, [0,-30], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
+                else:
+                    self.particles.append(Particle([15,15], [380, 430], [250, -55], "black", 2.5, [0,-30], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
             self.spriteHandler.setState(self.abilities[index].animtype)
 
 
 
     def heal(self, factor, randomness):
-        print(f"{self.name} sin bønn ble besvart")
-        print(factor)
         toHeal = factor +(random.randint(-1,1)*randomness)
         if self.currentHealth + toHeal>self.initHealth:
             self.currentHealth=self.initHealth
         else:
             self.currentHealth += toHeal
-        print(self.currentHealth)
-        for i in range(50):
+
+        for i in range(25):
             if not self.playable:
                 self.particles.append(Particle([7,7], [570, 480], [random.randint(-55,55), random.randint(-90,-20)], "green", 12, [0,-3]))
             else:
@@ -173,6 +212,8 @@ class PokerMann:
 
         if self.healthDisplay > self.currentHealth:
             self.healthDisplay-=1
+            if self.currentHealth<0:
+                self.healthDisplay-=3
         if self.healthDisplay< self.currentHealth:
             self.healthDisplay+=1
         innerRect = py.rect.Rect(xPos+2, yPos+2, ((self.healthDisplay/self.initHealth)*400)-4, 14)
@@ -180,6 +221,15 @@ class PokerMann:
 
         py.draw.rect(surf, settings.colors["BG"], outerRect)
         py.draw.rect(surf, settings.colors["HP"], innerRect)
+
+        font = py.font.Font('Pixelify_Sans/static/PixelifySans-Bold.ttf', 13)
+
+        txt = font.render(f"{self.currentHealth:.0f} / {self.initHealth} HP", True, settings.colors["BG"])
+        txtRect = txt.get_rect()
+
+        txtRect.x=xPos+5
+        txtRect.y = yPos+1
+        surf.blit(txt, txtRect)
 
     def drawOptions(self, surf):
         backBox0 = py.rect.Rect(0,settings.WH-250,settings.WW, 250)
@@ -224,8 +274,6 @@ class PokerMann:
         surf.blit(txt, txtRect)
 
 
-
-
     def takeDamage(self, damage, critChance, randomness):
         damageToTake = 0
         critHit = False
@@ -237,17 +285,23 @@ class PokerMann:
             damageToTake = damage+(random.randrange(-1,2)*(randomness/random.randrange(1,randomness)))
 
         if not self.playable:
-            self.particles.append(DamageNumber(damageToTake, [5,-5], [580, 400]))
+            self.particles.append(DamageNumber(round(damageToTake), [5,-5], [580, 400]))
         else:
-            self.particles.append(DamageNumber(damageToTake, [-5,-5], [380, 400]))
+            self.particles.append(DamageNumber(round(damageToTake), [-5,-5], [380, 400]))
+        if critHit:
+            if not self.playable:
+                self.particles.append(DamageNumber("CRITICAL HIT", [-5,-2], [580, 400]))
+            else:
+                self.particles.append(DamageNumber("CRITICAL HIT", [5,-2], [380, 400]))
 
-        print(f"{self.name} blir angrepet")
-        print(self.currentHealth)
+
+
+
         self.currentHealth-=damageToTake
-        print(self.currentHealth)
+
 
         self.spriteHandler.setState("Hurt")
-        if self.currentHealth<0:
+        if self.currentHealth<=0:
             self.spriteHandler.setState("Death")
         for i in range(50):
             if not self.playable:
@@ -255,7 +309,22 @@ class PokerMann:
             else:
                 self.particles.append(Particle([7,7], [380, 480], [random.randint(-151, -20), random.randint(-150,-80)], "red", 12, [0,-12]))
 
-    def update(self, surf):
+    def input(self, mousePos):
+        keystrokes = py.key.get_pressed()
+
+        if mousePos[0]< settings.WW/2 and  (settings.WH-200<mousePos[1]<settings.WH-100):
+            if py.mouse.get_pressed()[0]:
+                self.useAbility(0)
+        elif mousePos[0]> settings.WW/2 and  (settings.WH-200<mousePos[1]<settings.WH-100):
+            if py.mouse.get_pressed()[0]:
+                self.useAbility(1)
+        if mousePos[0]< settings.WW/2 and  (settings.WH-100<mousePos[1]<settings.WH):
+            if py.mouse.get_pressed()[0]:
+                self.useAbility(2)
+        elif mousePos[0]> settings.WW/2 and  (settings.WH-100<mousePos[1]<settings.WH):
+            if py.mouse.get_pressed()[0]:
+                self.useAbility(3)
+    def update(self, surf, mousePos):
 
         for p in self.particles:
             p.update(surf)
@@ -266,15 +335,26 @@ class PokerMann:
             self.drawOptions(surf)
         else:
             self.enemyInfo(surf)
+
         self.drawHealthBar(surf)
-        self.spriteHandler.update(surf)
+
+        if self.playable: self.input(mousePos)
+
+        self.spriteHandler.update(surf, [(mousePos[0]-settings.WW/2)/50, (mousePos[1]-settings.WH/2)/100])
+
         if not self.playable:
             self.AITimer-=0.2
             if -1< self.AITimer<1:
+
                 self.useAbility(random.randint(0, len(self.abilities)-1))
                 self.AITimer=-100
+
         if self.currentHealth<=0:
+            if not self.dead: self.spriteHandler.setState("Death")
             self.dead=True
+
+
+
 
 
 
@@ -304,12 +384,15 @@ class Ability():
         self.target = target
 
     def use(self):
+        self.target.yourTurn = True
+        self.target.AITimer = random.randint(5,15)
         if random.randrange(0,101)<self.successrate:
             print(f"Utfører {self.name}")
             if self.damage != 0:
                 self.target.takeDamage(self.damage, self.critChance, self.randomness)
             if self.healingFactor != 0:
                 self.character.heal(self.healingFactor, self.randomness)
+
             return True
         else:
 
@@ -319,7 +402,7 @@ class Ability():
 
 
 class Particle:
-    def __init__(self, size, pos, velocity, color, lifetime, damping = [0,0]):
+    def __init__(self, size, pos, velocity, color, lifetime, damping = [0,0], image="nah"):
         self.pos = pos
         self.size = [size[0]*random.randint(9,12)/10, size[1]*random.randint(9,12)/10]
         self.rect = py.rect.Rect(pos[0], pos[1], size[0], size[1])
@@ -327,10 +410,14 @@ class Particle:
         self.damping = damping
         self.color = color
         self.lifetime = lifetime
+        self.image = image
 
 
     def draw(self, plane):
-        py.draw.rect(plane, self.color, self.rect)
+        if self.image =="nah":
+            py.draw.rect(plane, self.color, self.rect)
+        else:
+            plane.blit(py.transform.scale(py.image.load(self.image),(24,24)), (self.pos[0], self.pos[1]))
 
     def move(self):
         self.pos[0] += self.velocity[0]/10
@@ -390,19 +477,19 @@ pikk = PokerMann(
 
 mann.abilities = \
 [
-    Ability("Klor", mann, pikk, 10, 10, 2, "Attack1", 80),
-    Ability("Bønn", mann, pikk, 0, 0, 10, "Idle", 50, 50),
-    Ability("SMÆKK", mann, pikk, 24, 50, 10, "Attack2", 50),
-    Ability("BOOM", mann, pikk, 100, 25, 2, "Attack2", 10)
+    Ability("Klæss", mann, pikk, 10, 10, 2, "Attack1", 90),
+    Ability("Mediter", mann, pikk, 0, 0, 10, "Throw", 50, 50),
+    Ability("SMÆKK SMÆKK", mann, pikk, 24, 50, 10, "Attack2", 50),
+    Ability("YEET", mann, pikk, 100, 25, 2, "Throw", 10)
 ]
 pikk.abilities = \
     [
-        Ability("Klor", pikk, mann, 10, 10, 2, "Attack1", 80),
-        Ability("Bønn", pikk, mann, 0, 0, 10, "Idle", 50, 50),
-        Ability("SMÆKK", pikk, mann, 24, 50, 10, "Attack2", 50),
-        Ability("BOOM", pikk, mann, 100, 25, 2, "Attack2", 10)
+        Ability("Klæss", pikk, mann, 10, 10, 2, "Attack1", 90),
+        Ability("Mediter", pikk, mann, 0, 0, 10, "Throw", 50, 50),
+        Ability("SMÆKK SMÆKK", pikk, mann, 24, 50, 10, "Attack2", 50),
+        Ability("YEET", pikk, mann, 100, 25, 2, "Throw", 10)
     ]
 
-#mann.useAbility(random.randint(0,1))
+
 
 
