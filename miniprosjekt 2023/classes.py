@@ -2,6 +2,7 @@ import pygame as py
 from pygame.locals import *
 import random, settings
 
+#Splitter opp spritesheet for animasjoner
 def splitSheet(sheet, imgSize, split, index, flip = 0):
     xSize = imgSize[0]/split[0]
     ySize = imgSize[1]/split[1]
@@ -12,7 +13,7 @@ def splitSheet(sheet, imgSize, split, index, flip = 0):
     img = py.transform.flip(img,flip, 0)
     return img
 
-
+#Definerer animasjoner for 3 forskjellige monstre
 spriteType = {
     1:{
         "Idle":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Idle.png"), [128, 32], [4,1], [i, 0]) for i in range(4)],
@@ -52,7 +53,7 @@ spriteType = {
 
 
 
-
+#Klasse som håndterer tegning og animasjon av monstre
 class SpriteHandler():
 
     def __init__(self, spriteNum, player=False):
@@ -63,20 +64,8 @@ class SpriteHandler():
         self.player = player
         self.pos = [0,0]
 
-    """
-    Kan være:
-    Attack1
-    Attack2
-    Death
-    Hurt
-    Idle
-    Run
-    WalkAttack
-    Walk
-    Throw
-    """
-
     def setState(self, state):
+        self.frame = 0
         self.state = state
 
     def draw(self, plane):
@@ -120,14 +109,22 @@ class PokerMann:
         self.playable = playable
         self.spriteHandler = spritehandler
         self.spriteHandler.setState("Idle")
+        self.particles = []
+        self.yourTurn = True
+        self.AITimer = -10
+        self.dead = False
 
     def useAbility(self, index):
-        self.abilities[index].use()
-        self.spriteHandler.frame = 0
-        if 0 < self.abilities[index].damage <= 20:
-            self.spriteHandler.setState("Attack1")
-        if 20 < self.abilities[index].damage <= 100:
-            self.spriteHandler.setState("Attack2")
+        if not self.dead:
+            self.yourTurn=False
+            if not self.abilities[index].use():
+                if not self.playable:
+                    self.particles.append(DamageNumber("Bommet", [5,-5], [580, 400]))
+                else:
+                    self.particles.append(DamageNumber("Bommet", [-5,-5], [380, 400]))
+            self.spriteHandler.setState(self.abilities[index].animtype)
+
+
 
     def heal(self, factor, randomness):
         print(f"{self.name} sin bønn ble besvart")
@@ -138,6 +135,12 @@ class PokerMann:
         else:
             self.currentHealth += toHeal
         print(self.currentHealth)
+        for i in range(50):
+            if not self.playable:
+                self.particles.append(Particle([7,7], [570, 480], [random.randint(-55,55), random.randint(-90,-20)], "green", 12, [0,-3]))
+            else:
+                self.particles.append(Particle([7,7], [380, 480], [random.randint(-55, 55), random.randint(-90,-20)], "green", 12, [0,-3]))
+
 
     def drawHealthBar(self, surf):
         font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 20)
@@ -233,26 +236,47 @@ class PokerMann:
         else:
             damageToTake = damage+(random.randrange(-1,2)*(randomness/random.randrange(1,randomness)))
 
+        if not self.playable:
+            self.particles.append(DamageNumber(damageToTake, [5,-5], [580, 400]))
+        else:
+            self.particles.append(DamageNumber(damageToTake, [-5,-5], [380, 400]))
+
         print(f"{self.name} blir angrepet")
         print(self.currentHealth)
         self.currentHealth-=damageToTake
         print(self.currentHealth)
-        self.spriteHandler.frame = 0
+
         self.spriteHandler.setState("Hurt")
         if self.currentHealth<0:
             self.spriteHandler.setState("Death")
-
-
+        for i in range(50):
+            if not self.playable:
+                self.particles.append(Particle([7,7], [570, 480], [random.randint(-20,151), random.randint(-150,-80)], "red", 12, [0,-12]))
+            else:
+                self.particles.append(Particle([7,7], [380, 480], [random.randint(-151, -20), random.randint(-150,-80)], "red", 12, [0,-12]))
 
     def update(self, surf):
+
+        for p in self.particles:
+            p.update(surf)
+            if p.lifetime<0:
+                self.particles.remove(p)
+
         if self.playable:
             self.drawOptions(surf)
         else:
             self.enemyInfo(surf)
         self.drawHealthBar(surf)
-
-
         self.spriteHandler.update(surf)
+        if not self.playable:
+            self.AITimer-=0.2
+            if -1< self.AITimer<1:
+                self.useAbility(random.randint(0, len(self.abilities)-1))
+                self.AITimer=-100
+        if self.currentHealth<=0:
+            self.dead=True
+
+
 
 
 
@@ -286,8 +310,63 @@ class Ability():
                 self.target.takeDamage(self.damage, self.critChance, self.randomness)
             if self.healingFactor != 0:
                 self.character.heal(self.healingFactor, self.randomness)
+            return True
         else:
+
+
             print(f"{self.name} feilet")
+            return False
+
+
+class Particle:
+    def __init__(self, size, pos, velocity, color, lifetime, damping = [0,0]):
+        self.pos = pos
+        self.size = [size[0]*random.randint(9,12)/10, size[1]*random.randint(9,12)/10]
+        self.rect = py.rect.Rect(pos[0], pos[1], size[0], size[1])
+        self.velocity = velocity
+        self.damping = damping
+        self.color = color
+        self.lifetime = lifetime
+
+
+    def draw(self, plane):
+        py.draw.rect(plane, self.color, self.rect)
+
+    def move(self):
+        self.pos[0] += self.velocity[0]/10
+        self.pos[1] += self.velocity[1]/10
+        self.velocity[0] -= self.damping[0]
+        self.velocity[1] -= self.damping[1]
+
+    def update(self, plane):
+        self.rect = py.rect.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
+        self.move()
+        self.draw(plane)
+        self.lifetime-=0.3
+
+class DamageNumber:
+    def __init__(self, damage, velocity, pos, crit=False):
+        if crit:
+            self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 34)
+        else:
+            self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 22)
+        self.txt = self.font.render(str(damage), True, settings.colors["TXT"])
+        self.rect = self.txt.get_rect()
+        self.rect.x = pos[0]
+        self.rect.y = pos[1]
+        self.velocity = velocity
+        self.lifetime = 5
+
+    def draw(self, surf):
+        surf.blit(self.txt, self.rect)
+    def move(self):
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+
+    def update(self, surf):
+        self.draw(surf)
+        self.move()
+        self.lifetime-=0.3
 
 
 
@@ -295,7 +374,7 @@ mann = PokerMann(
     "Jens",
     SpriteHandler(1,True),
     10,
-    100,
+    150,
     [],
     0,
     True
@@ -304,18 +383,25 @@ pikk = PokerMann(
     "Fjomperompe",
     SpriteHandler(2),
     4,
-    100,
+    110,
     [],
     0
 )
 
 mann.abilities = \
 [
-    Ability("Klor", mann, pikk, 10, 10, 2, 1, 80),
-    Ability("Bønn", mann, pikk, 0, 0, 10, 1, 50, 50),
-    Ability("SMÆKK", mann, pikk, 24, 50, 10, 1, 50),
-    Ability("BOOM", mann, pikk, 100, 25, 2, 1, 10)
+    Ability("Klor", mann, pikk, 10, 10, 2, "Attack1", 80),
+    Ability("Bønn", mann, pikk, 0, 0, 10, "Idle", 50, 50),
+    Ability("SMÆKK", mann, pikk, 24, 50, 10, "Attack2", 50),
+    Ability("BOOM", mann, pikk, 100, 25, 2, "Attack2", 10)
 ]
+pikk.abilities = \
+    [
+        Ability("Klor", pikk, mann, 10, 10, 2, "Attack1", 80),
+        Ability("Bønn", pikk, mann, 0, 0, 10, "Idle", 50, 50),
+        Ability("SMÆKK", pikk, mann, 24, 50, 10, "Attack2", 50),
+        Ability("BOOM", pikk, mann, 100, 25, 2, "Attack2", 10)
+    ]
 
 #mann.useAbility(random.randint(0,1))
 
