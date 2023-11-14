@@ -6,23 +6,30 @@ py.init()
 clock=py.time.Clock()
 mann = classes.mann
 enemy1 = classes.pikk
-gameSurf = py.display.set_mode((settings.WW,settings.WH), py.HWSURFACE)
+
+flags = DOUBLEBUF | py.HWSURFACE | FULLSCREEN
+py.event.set_allowed([QUIT, KEYDOWN, KEYUP, MOUSEBUTTONDOWN, MOUSEMOTION])
+
+gameSurf = py.display.set_mode((settings.WW,settings.WH), flags, 16 )
 
 enemy1.yourTurn=False
 
 
 bakgrunn = classes.Background()
-
+b1 = classes.Button("Heisann", [200, 200], [200, 50])
+gameplay = True
+settingsPage = False
 def gameLoop():
-    while True:
+    while gameplay and not settingsPage:
 
+        if not settings.background: gameSurf.fill(settings.colors["BG"])
 
         for e in py.event.get():
             if e.type == QUIT:
                 py.quit()
                 exit()
             if e.type == MOUSEMOTION and settings.respondToMouse:
-                bakgrunn.movePic(py.mouse.get_pos())
+                if settings.background: bakgrunn.movePic(py.mouse.get_pos())
 
 
 
@@ -55,10 +62,17 @@ def gameLoop():
                     case "4":
                         mann.useAbility(3)
 
-        bakgrunn.update(gameSurf)
+        if settings.background: bakgrunn.update(gameSurf)
         mann.update(gameSurf, py.mouse.get_pos())
         enemy1.update(gameSurf, py.mouse.get_pos())
         py.display.update()
         clock.tick(settings.FPS)
+    while settingsPage:
+
+
+        #b1.update(gameSurf, py.mouse.get_pos())
+        py.display.update()
+        clock.tick(settings.FPS)
+
 
 cProfile.run("gameLoop()")
