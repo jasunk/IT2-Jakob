@@ -8,7 +8,7 @@ def splitSheet(sheet, imgSize, split, index, flip = 0):
     xSize = imgSize[0]/split[0]
     ySize = imgSize[1]/split[1]
     img = py.Surface((xSize,ySize), py.SRCALPHA)
-    img.blit(sheet, (0,0), (xSize*(index[0]), ySize*(index[1]),xSize*(index[0]+1), ySize*(index[1]+1)))
+    img.blit(sheet, (0,0), (xSize*(index[0]), ySize*(index[1]), xSize*(index[0]+1), ySize*(index[1]+1)))
 
     img = py.transform.scale(img,(xSize*3,ySize*3))
     img = py.transform.flip(img, flip, 0)
@@ -89,6 +89,11 @@ class SpriteHandler():
         self.pos = [0,0]
         self.particlePos = [0,0]
         self.shouldDisplay = True
+        if self.player:
+            self.activePos = [0, self.pos[1]]
+        else:
+            self.activePos = [settings.WW-32*3, self.pos[1]]
+        self.enemySpeed = self.activePos[0]-(settings.WW/2-settings.WW/8)
 
 
 
@@ -106,10 +111,19 @@ class SpriteHandler():
         else:
             self.pos = [settings.WW/2-settings.WW/8, settings.WH/2]
 
+
+        if self.activePos[0] < self.pos[0] and self.player:
+            imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
+            self.activePos[0] += (self.pos[0])/100
+        if self.activePos[0]> self.pos[0] and not self.player:
+            imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
+            imageToDraw = py.transform.flip(imageToDraw,1,0)
+            self.activePos[0] -= (self.enemySpeed)/120
+
         if settings.respondToMouse:
-            plane.blit(imageToDraw.convert_alpha(), (self.pos[0]-mousepos[0], self.pos[1]-mousepos[1]))
+            plane.blit(imageToDraw.convert_alpha(), (self.activePos[0]-mousepos[0], self.pos[1]-mousepos[1]))
         else:
-            plane.blit(imageToDraw.convert_alpha(), (self.pos[0], self.pos[1]))
+            plane.blit(imageToDraw.convert_alpha(), (self.activePos[0], self.pos[1]))
     def update(self, plane, mousepos):
 
         if self.counter<3:
@@ -131,6 +145,8 @@ class SpriteHandler():
 
 
 
+
+
 class PokerMann:
     def __init__(self, name, spritehandler, level, initHealth, abilities, sprite, playable = False):
         self.name = name
@@ -147,10 +163,7 @@ class PokerMann:
         self.yourTurn = True
         self.AITimer = -10
         self.dead = False
-        if self.playable:
-            self.activePos = [0, self.spriteHandler.pos[1]]
-        else:
-            self.activePos = [settings.WW, self.spriteHandler.pos[1]]
+
     def useAbility(self, index):
 
         if not self.dead and self.yourTurn:
@@ -367,8 +380,6 @@ class PokerMann:
             if not self.dead: self.spriteHandler.setState("Death")
             self.dead=True
 
-        if self.spriteHandler.pos[0]-5<self.activePos[0]< self.spriteHandler.pos[0]+5:
-            self.activePos[0] += (self.activePos[0]-self.spriteHandler.pos[0])/100
 
 
 
@@ -530,3 +541,5 @@ pikk.abilities = \
 
 
 
+
+#   c8nwfjxp
