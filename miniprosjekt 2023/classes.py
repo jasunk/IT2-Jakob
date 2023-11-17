@@ -80,8 +80,9 @@ class Background:
 #Klasse som håndterer tegning og animasjon av monstre
 class SpriteHandler():
 
-    def __init__(self, spriteNum,  player=False):
+    def __init__(self, spriteNum,  player=False, shouldWalk = True):
         self.spriteNum = spriteNum
+        self.shouldWalk = shouldWalk
         self.frame = 0
         self.counter = 0
         self.state = "Idle"
@@ -112,18 +113,24 @@ class SpriteHandler():
             self.pos = [settings.WW/2-settings.WW/8, settings.WH/2]
 
 
-        if self.activePos[0] < self.pos[0] and self.player:
+        if self.activePos[0] < self.pos[0] and self.player and self.shouldWalk:
             imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
             self.activePos[0] += (self.pos[0])/100
-        if self.activePos[0]> self.pos[0] and not self.player:
+        if self.activePos[0]> self.pos[0] and not self.player and self.shouldWalk:
             imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
             imageToDraw = py.transform.flip(imageToDraw,1,0)
             self.activePos[0] -= (self.enemySpeed)/120
 
         if settings.respondToMouse:
-            plane.blit(imageToDraw.convert_alpha(), (self.activePos[0]-mousepos[0], self.pos[1]-mousepos[1]))
+            if self.shouldWalk:
+                plane.blit(imageToDraw.convert_alpha(), (self.activePos[0]-mousepos[0], self.pos[1]-mousepos[1]))
+            else:
+                plane.blit(imageToDraw.convert_alpha(), (self.pos[0]-mousepos[0], self.pos[1]-mousepos[1]))
         else:
-            plane.blit(imageToDraw.convert_alpha(), (self.activePos[0], self.pos[1]))
+            if self.shouldWalk:
+                plane.blit(imageToDraw.convert_alpha(), (self.activePos[0], self.pos[1]))
+            else:
+                plane.blit(imageToDraw.convert_alpha(), (self.pos[0], self.pos[1]))
     def update(self, plane, mousepos):
 
         if self.counter<3:
@@ -148,14 +155,14 @@ class SpriteHandler():
 
 
 class PokerMann:
-    def __init__(self, name, spritehandler, level, initHealth, abilities, sprite, playable = False):
+    def __init__(self, name, spritehandler, level, initHealth, abilities, playable = False):
         self.name = name
         self.level = level
         self.initHealth = initHealth
         self.currentHealth = initHealth
         self.healthDisplay = initHealth
         self.abilities = abilities
-        self.sprite = sprite
+
         self.playable = playable
         self.spriteHandler = spritehandler
         self.spriteHandler.setState("Idle")
@@ -163,9 +170,17 @@ class PokerMann:
         self.yourTurn = True
         self.AITimer = -10
         self.dead = False
+        self.target = ""
+
+    def refreshTarget(self, target):
+        self.target=target
+        for a in self.abilities:
+            a.target = target
+
 
     def useAbility(self, index):
-
+        for a in self.abilities:
+            a.target=self.target
         if not self.dead and self.yourTurn:
             self.yourTurn=False
             if not self.abilities[index].use():
@@ -406,8 +421,11 @@ class Ability():
         self.target = target
 
     def use(self):
+
+
         self.target.yourTurn = True
         self.target.AITimer = random.randint(3,11)
+
         if random.randrange(0,101)<self.successrate:
             print(f"Utfører {self.name}")
             if self.damage != 0:
@@ -452,7 +470,7 @@ class Particle:
         self.move()
         self.draw(plane)
         self.lifetime-=0.3
-        print(self.velocity)
+
 
 class DamageNumber:
     def __init__(self, damage, velocity, pos, crit=False):
@@ -508,7 +526,6 @@ mann = PokerMann(
     10,
     150,
     [],
-    0,
     True
 )
 
@@ -517,8 +534,7 @@ pikk = PokerMann(
     SpriteHandler(2),
     4,
     110,
-    [],
-    0
+    []
 )
 
 mann.abilities = \
