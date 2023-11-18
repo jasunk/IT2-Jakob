@@ -114,12 +114,12 @@ class SpriteHandler():
 
 
         if self.activePos[0] < self.pos[0] and self.player and self.shouldWalk:
-            imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
-            self.activePos[0] += (self.pos[0])/100
+            imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
+            self.activePos[0] += (self.pos[0])/80
         if self.activePos[0]> self.pos[0] and not self.player and self.shouldWalk:
-            imageToDraw = spriteType[self.spriteNum]["Walk"][self.frame]
+            imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
             imageToDraw = py.transform.flip(imageToDraw,1,0)
-            self.activePos[0] -= (self.enemySpeed)/120
+            self.activePos[0] -= (self.enemySpeed)/90
 
         if settings.respondToMouse:
             if self.shouldWalk:
