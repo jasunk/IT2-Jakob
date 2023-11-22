@@ -1,35 +1,52 @@
 import saves, settings, classes, random
-enemyPool = [
-    classes.Ability("Klæss", "self", "target", 3*saves.save_1["enemy"]["lvl"], 10, 2, "Attack1", 90),
-    classes.Ability("KÆÆZING", "self", "target", 5*saves.save_1["enemy"]["lvl"], 10, 2, "Attack1", 80),
-    classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw", 65, 10*saves.save_1["enemy"]["lvl"]),
-    classes.Ability("Ur mom joke", "self", "target", 15*saves.save_1["player"]["lvl"], 10, 2, "Throw", 65),
-    classes.Ability("SMÆKK SMÆKK", "self", "target", 5*saves.save_1["enemy"]["lvl"], 50, 10, "Attack2", 75),
-    classes.Ability("YEET", "self", "target", 50+5*saves.save_1["enemy"]["lvl"], 25, 2, "Throw", 10)
-]
-playerPool = [
-    classes.Ability("Klæss", "self", "target", 3*saves.save_1["player"]["lvl"], 10, 2, "Attack1", 90),
-    classes.Ability("KÆÆZING", "self", "target", 5*saves.save_1["player"]["lvl"], 10, 2, "Attack1", 80),
-    classes.Ability("Ur mom joke", "self", "target", 15*saves.save_1["player"]["lvl"], 10, 2, "Throw", 65),
-    classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw", 65, 10*saves.save_1["player"]["lvl"]),
-    classes.Ability("SMÆKK SMÆKK", "self", "target", 5*saves.save_1["player"]["lvl"], 50, 10, "Attack2", 75),
-    classes.Ability("YEET", "self", "target", 50+5*saves.save_1["player"]["lvl"], 25, 2, "Throw", 10)
-]
 
+#navneliste for tilfeldig genererte karakterer
 names = ["Jens", "Jomar", "Fjomp", "Gelemaur", "Slump", "Fis", "Fjomp", "Rassgutt", "MR Man", "Rasistikus", "Klump", "Bleknet nakenkatts haarstraa", "Ankelsluker"]
 
+
+playerAbilityNames = []
+enemyAbilityNames = []
+
+#håndterer HELT TILFELDIGE MONSTre
 def createRandom(player=False):
-    global enemyPool, playerPool
+    global playerAbilityNames, enemyAbilityNames
+
+    #har abilitypools seperat, for å kunne legge til difficulty og for å kunne fjerne irriterende angrep fra motstander
+    enemyPool = [
+        classes.Ability("Klæss", "self", "target", 3+3* (saves.save_1["enemy"]["lvl"]/3), 10, 2, "Attack1", 90),
+        classes.Ability("KÆÆZING", "self", "target", 5+5*(saves.save_1["enemy"]["lvl"]/3), 10, 2, "Attack1", 80),
+        classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw2", 65, 10*saves.save_1["enemy"]["lvl"]),
+        classes.Ability("Yo mama joke", "self", "target", 10+15*(saves.save_1["player"]["lvl"]/3), 10, 2, "Throw2", 65),
+        classes.Ability("SMÆKK SMÆKK", "self", "target", 5+5*(saves.save_1["enemy"]["lvl"]/3), 50, 10, "Attack2", 75),
+        classes.Ability("YEET", "self", "target", 50+(5*saves.save_1["enemy"]["lvl"]/3), 25, 2, "Throw", 10)
+    ]
+    playerPool = [
+        classes.Ability("Klæss", "self", "target", 3+3*(saves.save_1["player"]["lvl"]/3), 10, 2, "Attack1", 90),
+        classes.Ability("KÆÆZING", "self", "target", 5+5*(saves.save_1["player"]["lvl"]/3), 10, 2, "Attack1", 80),
+        classes.Ability("Yo mama joke", "self", "target", 10+15*(saves.save_1["player"]["lvl"]/3), 10, 2, "Throw2", 65),
+        classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw2", 65, 10*saves.save_1["player"]["lvl"]),
+        classes.Ability("SMÆKK SMÆKK", "self", "target", 5+5*(saves.save_1["player"]["lvl"]/3), 50, 10, "Attack2", 75),
+        classes.Ability("YEET", "self", "target", 50+5*(saves.save_1["player"]["lvl"]/3), 25, 2, "Throw", 10)
+    ]
+
+    #lager to arrays som håndterer navnene til abilities, brukes for å finne index i semirandom()
+    playerAbilityNames = [playerPool[i].name for i in range(len(playerPool))]
+    enemyAbilityNames = [enemyPool[i].name for i in range(len(enemyPool))]
+
+    #velger tilfeldig spirte
     sprite = random.randint(1,3)
+
+    #tilpasser variabler basert på lagret data i saves
     if player:
-        level = saves.save_1["player"]["lvl"]+random.randint(-1,2)
+        level = saves.save_1["player"]["lvl"]
         saves.save_1["player"]["sprite"]= sprite
         health = 23 + saves.save_1["player"]["lvl"]*5
     else:
-        level =saves.save_1["enemy"]["lvl"]+random.randint(-1,2)
+        level =saves.save_1["enemy"]["lvl"]
         saves.save_1["enemy"]["sprite"]= sprite
         health = 23 + saves.save_1["enemy"]["lvl"]*5
 
+    #lager karakter
     char = classes.PokerMann(
         names[random.randint(0,len(names)-1)],
         classes.SpriteHandler(sprite,player),
@@ -39,52 +56,79 @@ def createRandom(player=False):
         player
     )
 
+    #legger til 4 abilities
     for i in range(4):
+        index = random.randint(0, len(playerPool)-1)
         if player:
-            char.abilities.append(playerPool[random.randint(0, len(playerPool)-1)])
+            char.abilities.append(playerPool[index])
         else:
-            char.abilities.append(enemyPool[random.randint(0, len(enemyPool)-1)])
+            char.abilities.append(enemyPool[index])
+
+    #oppdaterer verdier i abilities
     for a in char.abilities:
         a.playable = player
         a.character = char
+        a.damage = round(a.damage,2)
+
 
     return char
 
+
+#brukes for seirende monster, for å bevare navn, utseende og abilities
 def semiRandom(original, player=True):
+    #oppdaterer verdier (funker det?)
+    enemyPool = [
+        classes.Ability("Klæss", "self", "target", 3+3* (saves.save_1["enemy"]["lvl"]/3), 10, 2, "Attack1", 90),
+        classes.Ability("KÆÆZING", "self", "target", 5+5*(saves.save_1["enemy"]["lvl"]/3), 10, 2, "Attack1", 80),
+        classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw2", 65, 10*saves.save_1["enemy"]["lvl"]),
+        classes.Ability("Yo mama joke", "self", "target", 10+15*(saves.save_1["player"]["lvl"]/3), 10, 2, "Throw2", 65),
+        classes.Ability("SMÆKK SMÆKK", "self", "target", 5+5*(saves.save_1["enemy"]["lvl"]/3), 50, 10, "Attack2", 75),
+        classes.Ability("YEET", "self", "target", 50+(5*saves.save_1["enemy"]["lvl"]/3), 25, 2, "Throw", 10)
+    ]
+    playerPool = [
+        classes.Ability("Klæss", "self", "target", 3+3*(saves.save_1["player"]["lvl"]/3), 10, 2, "Attack1", 90),
+        classes.Ability("KÆÆZING", "self", "target", 5+5*(saves.save_1["player"]["lvl"]/3), 10, 2, "Attack1", 80),
+        classes.Ability("Yo mama joke", "self", "target", 10+15*(saves.save_1["player"]["lvl"]/3), 10, 2, "Throw2", 65),
+        classes.Ability("Mediter", "self", "target", 0, 0, 10, "Throw2", 65, 10*saves.save_1["player"]["lvl"]),
+        classes.Ability("SMÆKK SMÆKK", "self", "target", 5+5*(saves.save_1["player"]["lvl"]/3), 50, 10, "Attack2", 75),
+        classes.Ability("YEET", "self", "target", 50+5*(saves.save_1["player"]["lvl"]/3), 25, 2, "Throw", 10)
+    ]
+
+    #velger variable basert på hvem som overlevde
     if player:
-        level =saves.save_1["player"]["lvl"]
+        level = saves.save_1["player"]["lvl"]
         health = 23 + saves.save_1["player"]["lvl"]*5
         sprite = saves.save_1["player"]["sprite"]
     else:
-        level =saves.save_1["enemy"]["lvl"]
+        level = saves.save_1["enemy"]["lvl"]
         health = 23 + saves.save_1["enemy"]["lvl"]*5
         sprite = saves.save_1["enemy"]["sprite"]
-    if player:
-        char = classes.PokerMann(
-            original.name,
-            classes.SpriteHandler(sprite, True, False),
-            level,
-            health,
-            original.abilities,
-            True
-        )
-    else:
-        char = classes.PokerMann(
-            original.name,
-            classes.SpriteHandler(sprite, False, False),
-            level,
-            health,
-            original.abilities,
-            False
-        )
 
-    char.currentHealth = original.currentHealth + health/2
+
+    char = classes.PokerMann(
+        original.name,
+        classes.SpriteHandler(sprite, player, False),
+        level,
+        health,
+        original.abilities,
+        player
+    )
+
+    #gir overlevende til bake mye helse
+    char.currentHealth = original.currentHealth + health/1.5
     if char.currentHealth>char.initHealth:
         char.currentHealth = char.initHealth
 
+    #oppdaterer abilitites
     for a in char.abilities:
         a.playable = player
         a.character = char
+        if player:
+            a = playerPool[playerAbilityNames.index(a.name)]
+        else:
+            a = enemyPool[enemyAbilityNames.index(a.name)]
+        a.damage = round(a.damage,2)
+
 
 
     return char

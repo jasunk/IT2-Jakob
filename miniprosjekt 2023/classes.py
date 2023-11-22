@@ -1,6 +1,6 @@
 import pygame as py
 from pygame.locals import *
-import random, settings
+import random, settings, saves
 
 
 #Splitter opp spritesheet for animasjoner
@@ -24,6 +24,7 @@ spriteType = {
         "Hurt":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Hurt.png"),                  [128, 32], [4,1], [i, 0]) for i in range(4)],
         "Run":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Run.png"),                    [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Throw":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Throw.png"),                [128, 32], [4,1], [i, 0]) for i in range(4)],
+        "Throw2":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Throw.png"),                [128, 32], [4,1], [i, 0]) for i in range(4)],
         "WalkAttack":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Walk+Attack.png"),     [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Walk":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Walk.png"),                  [192, 32], [6,1], [i, 0]) for i in range(6)]
     },
@@ -35,6 +36,7 @@ spriteType = {
         "Hurt":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Hurt_4.png"),              [128, 32], [4,1], [i, 0]) for i in range(4)],
         "Run":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Run_6.png"),                [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Throw":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Throw_4.png"),            [128, 32], [4,1], [i, 0]) for i in range(4)],
+        "Throw2":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Throw_4.png"),            [128, 32], [4,1], [i, 0]) for i in range(4)],
         "WalkAttack":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Walk+Attack_6.png"), [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Walk":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/2 Owlet_Monster/Owlet_Monster_Walk_6.png"),              [192, 32], [6,1], [i, 0]) for i in range(6)]
     },
@@ -46,12 +48,13 @@ spriteType = {
         "Hurt":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Hurt_4.png"),                [128, 32], [4,1], [i, 0]) for i in range(4)],
         "Run":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Run_6.png"),                  [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Throw":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Throw_4.png"),              [128, 32], [4,1], [i, 0]) for i in range(4)],
+        "Throw2":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Throw_4.png"),              [128, 32], [4,1], [i, 0]) for i in range(4)],
         "WalkAttack":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Walk+Attack_6.png"),   [192, 32], [6,1], [i, 0]) for i in range(6)],
         "Walk":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/3 Dude_Monster/Dude_Monster_Walk_6.png"),                [192, 32], [6,1], [i, 0]) for i in range(6)]
     }
 }
 
-
+#tegner bakgrunn
 class Background:
 
     def __init__(self):
@@ -64,11 +67,12 @@ class Background:
         self.middels   = py.transform.scale(py.image.load("sprites/Platformer - desert/Background/BG-mountains.png").convert_alpha(),(settings.WW+24, settings.WW))
         self.framst    = py.transform.scale(py.image.load("sprites/Platformer - desert/Background/BG-ruins.png").convert_alpha(),(settings.WW+24, settings.WW))
 
-
+    #lager paralax-effekt om aktivt i innstillinger (håndteres i main)
     def movePic(self, mousePos):
         self.pos1 = [(-12),0]
         self.pos2 = [(-20-(mousePos[0]-settings.WW/2)/65),-settings.WH/2-(mousePos[1]-settings.WH/2)/130]
         self.pos3 = [(-13-(mousePos[0]-settings.WW/2)/30),-settings.WH/1.75-(mousePos[1]-settings.WH/2)/60]
+    #tegner
     def update(self, surf):
 
         surf.blit(self.lengstBak, (self.pos1[0], self.pos1[1]))
@@ -97,15 +101,17 @@ class SpriteHandler():
         self.enemySpeed = self.activePos[0]-(settings.WW/2-settings.WW/8)
 
 
-
+    #bestemmer hvilke animasjon som skal vises
     def setState(self, state):
         self.frame = 0
         self.state = state
 
+
     def draw(self, plane, mousepos):
+        #Velger bilde å tegne, angir en posisjon for partikler å spawne fra
         imageToDraw = spriteType[self.spriteNum][self.state][self.frame]
         self.particlePos = [self.pos[0]+(32*3)/2, self.pos[1]+(32*3)/2]
-        #flip sprite
+        #flip sprite om ikke spiller
         if not self.player:
             self.pos = [settings.WW/2+settings.WW/20, settings.WH/2]
             imageToDraw = py.transform.flip(imageToDraw,1,0)
@@ -113,6 +119,7 @@ class SpriteHandler():
             self.pos = [settings.WW/2-settings.WW/8, settings.WH/2]
 
 
+        #introsekvens, får monstre til å løpe mot ønsket posisjon i self.[pos]
         if self.activePos[0] < self.pos[0] and self.player and self.shouldWalk:
             imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
             self.activePos[0] += (self.pos[0])/80
@@ -133,6 +140,7 @@ class SpriteHandler():
                 plane.blit(imageToDraw.convert_alpha(), (self.pos[0], self.pos[1]))
     def update(self, plane, mousepos):
 
+        #Bruker konstant 3 for å ikke oppdatere sprite for hver frame
         if self.counter<3:
             self.counter+=1
         else:
@@ -155,6 +163,7 @@ class SpriteHandler():
 
 
 class PokerMann:
+    #init-values :)
     def __init__(self, name, spritehandler, level, initHealth, abilities, playable = False):
         self.name = name
         self.level = level
@@ -171,29 +180,42 @@ class PokerMann:
         self.AITimer = -10
         self.dead = False
         self.target = ""
+        self.XPtoNextLevel = 100
+        self.currentXP = 0
 
+    #oppdaterer verdi i abilies
     def refreshTarget(self, target):
         self.target=target
         for a in self.abilities:
             a.target = target
 
-
+    #bruker ability, tar inn index som ønsket angrep
     def useAbility(self, index):
         for a in self.abilities:
             a.target=self.target
+
+        #gjenomføres bare om man lever og har sin tur tilgjengelig
         if not self.dead and self.yourTurn:
             self.yourTurn=False
+            #bruker ability, og returnerer en bool om angrep var vellykket eller ikke
             if not self.abilities[index].use():
+                #skriver bommet ved monsters riktige posisjon, basert på om den er playable eller ikke
                 if not self.playable:
                     self.particles.append(DamageNumber("Bommet", [5,-5], self.spriteHandler.particlePos))
+
+                    #om angrepet er av type throw, og man bommer kastes steinen for kort
                     if self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
                         self.particles.append(Particle([15,15], self.spriteHandler.particlePos, [-130, -5], "black", 3, [0,-20], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
 
+                #samme logikk, men for spiller
                 else:
                     self.particles.append(DamageNumber("Bommet", [-5,-5], self.spriteHandler.particlePos))
                     if self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
                         self.particles.append(Particle([15,15], self.spriteHandler.particlePos, [130, -5], "black", 3, [0,-20], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
-            elif self.abilities[index].animtype=="Throw" and self.abilities[index].healingFactor <10:
+
+
+            #dersom ability er av type throw, tegner vi en stein som treffer:)
+            elif self.abilities[index].animtype=="Throw":
 
                 if not self.playable:
                     self.particles.append(Particle([15,15], self.spriteHandler.particlePos, [-250, -55], "black", 2.5, [0,-30], "sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Rock2.png"))
@@ -203,46 +225,70 @@ class PokerMann:
 
 
 
+    #helbredings-logikk
     def heal(self, factor, randomness):
+        #tar inn healingfactor, og endrer basert på ability-randomness
         toHeal = factor +(random.randint(-1,1)*randomness)
+
+        #undersøker om helse blir over max, eller ikke
         if self.currentHealth + toHeal>self.initHealth:
             self.currentHealth=self.initHealth
         else:
             self.currentHealth += toHeal
 
+        #nødvendig failsafe-partikkel
         self.particles.append(Particle([1,1], [0,0], [0,0], "black", 13))
+
+        #spawner healing-partikler ved riktig posisjon
         for i in range(25):
+            #flipper neste partikkel for en litt mer symmetrisk eksplosjon
             if self.particles[i-1].velocity[0]>0:
                 oppositeDir = -1
             else:
                 oppositeDir=1
-            if not self.playable: #Funker faen ikke
-                self.particles.append(Particle([7,7], [self.spriteHandler.particlePos[0], self.spriteHandler.particlePos[1]], [random.randint(-round(settings.WW/40), round(settings.WW/40))*(oppositeDir), random.randint(int(-settings.WH/40),0)], "green", 12, [0,0]))
-            else:
-                self.particles.append(Particle([7,7], [self.spriteHandler.particlePos[0], self.spriteHandler.particlePos[1]], [random.randint(-round(settings.WW/40), round(settings.WW/40))*(oppositeDir), random.randint(int(-settings.WH/40),0)], "green", 12, [0,0]))
+
+            self.particles.append(Particle([7,7], [self.spriteHandler.particlePos[0], self.spriteHandler.particlePos[1]], [random.randint(-round(settings.WW/40), round(settings.WW/40))*(oppositeDir), random.randint(int(-settings.WH/40),0)], "green", 12, [0,0]))
 
 
+
+    #håndterer helse, xp og level-tegning
     def drawHealthBar(self, surf):
+
         font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 20)
 
+        #velger tekst å skrive
         nameTxt = font.render(f"{self.name} ", True, settings.colors["TXT"])
         lvlTxt = font.render(f"Level: {self.level} ", True, settings.colors["TXT"])
 
+        #gjør tekst mindre
+        font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 16)
+        XPtext = font.render(f"XP: {self.currentXP} / {self.XPtoNextLevel} ", True, settings.colors["TXT"])
+
+        #lager rects for hver
         nameRect = nameTxt.get_rect()
         lvlRect = lvlTxt.get_rect()
+        XPrect = XPtext.get_rect()
 
+        #posisjonerer pos basert på hvem sine stats det er
         if self.playable:
             nameRect.x = 50
             nameRect.y = settings.WH-220
             lvlRect.x = settings.WW-150
             lvlRect.y = settings.WH-220
+            XPrect.x = settings.WW-290
+            XPrect.y = lvlRect.y
         else:
             nameRect.x = 50
             nameRect.y = 50
             lvlRect.x = settings.WW-150
             lvlRect.y = 50
+
+        #tegner navn, level og xp
         surf.blit(nameTxt, nameRect)
         surf.blit(lvlTxt, lvlRect)
+        surf.blit(XPtext, XPrect)
+
+        #velger posisjon for helsebar basert på playable
         xPos, yPos = 0, 0
         if self.playable:
             xPos, yPos = settings.WW/2-220, settings.WH-220
@@ -250,29 +296,34 @@ class PokerMann:
             xPos, yPos = settings.WW/2-220, 50
         outerRect = py.rect.Rect(xPos, yPos, 400, 20)
 
-
+        #håndterer smooth animasjon mellom helse-states
         if self.healthDisplay > self.currentHealth:
             self.healthDisplay-=1
             if self.currentHealth<0:
                 self.healthDisplay-=3
         if self.healthDisplay< self.currentHealth:
             self.healthDisplay+=1
+
+
         innerRect = py.rect.Rect(xPos+2, yPos+2, ((self.healthDisplay/self.initHealth)*400)-4, 14)
-
-
+        #tegner bakgrunn for helse
         py.draw.rect(surf, settings.colors["BG"], outerRect)
+
+        #tegner helse
         py.draw.rect(surf, settings.colors["HP"], innerRect)
 
+        #skriver HP med tall
         font = py.font.Font('Pixelify_Sans/static/PixelifySans-Bold.ttf', 13)
-
         txt = font.render(f"{self.currentHealth:.0f} / {self.initHealth} HP", True, settings.colors["BG"])
         txtRect = txt.get_rect()
-
         txtRect.x=xPos+5
         txtRect.y = yPos+1
         surf.blit(txt, txtRect)
 
+        #tegner opp interface for valg av ablity
     def drawOptions(self, surf):
+
+        #tilpasser 3 firkanter for litt estetisk nammenam
         backBox0 = py.rect.Rect(0,settings.WH-settings.WH/4,settings.WW, settings.WH/5)
         backBox1 = py.rect.Rect(2,settings.WH-settings.WH/4.1,settings.WW-4, settings.WH/5)
         backBox2 = py.rect.Rect(8,settings.WH-settings.WH/4.2,settings.WW-16, settings.WH/5)
@@ -280,9 +331,11 @@ class PokerMann:
         py.draw.rect(surf, settings.colors["BG"], backBox1, 0, 10)
         py.draw.rect(surf, settings.colors["UI"], backBox2, 0, 10)
 
+        #variabel som bestemmer posisjon
         xIncrease = 0
         yIncrease = 0
 
+        #plasserer hver ability
         for ability in self.abilities:
             font = py.font.Font('Pixelify_Sans/static/PixelifySans-Medium.ttf', 20)
             text = font.render(f"{ability.name} ({ability.damage} damage and {ability.healingFactor} healing)", True, settings.colors["TXT"])
@@ -297,6 +350,7 @@ class PokerMann:
                 xIncrease=0
                 yIncrease+=80
 
+    #tegner boks med litt informasjon om fiende
     def enemyInfo(self,surf):
         backBox0 = py.rect.Rect(0,0,settings.WW, 120)
         backBox1 = py.rect.Rect(2,2,settings.WW-4, 116)
@@ -315,35 +369,49 @@ class PokerMann:
         surf.blit(txt, txtRect)
 
 
+    #håndterer å ta skade
     def takeDamage(self, damage, critChance, randomness):
+
+        #init-verdier
         damageToTake = 0
         critHit = False
+
+        #undersøker om angrepet blir critical
         if random.randint(0,100) < critChance:
-            damageToTake = (damage+(random.randrange(-1,2)*(randomness/random.randrange(1,randomness))))*2
+            #tar skade basert på basis-skade, tilfeldighet og ganger til slutt med 2 for crithit
+            damageToTake = (damage+(random.randrange(-1,2)*(randomness/(random.randrange(1,randomness*10)/10))))*2
             critHit = True
 
         else:
-            damageToTake = damage+(random.randrange(-1,2)*(randomness/random.randrange(1,randomness)))
+            #tar skade basert på basis-skade og tilfeldighet
+            damageToTake = damage+(random.randrange(-1,2)*(randomness/(random.randrange(1,randomness*10)/10)))
 
+        #for å sørge for at ingen angrep helbreder den andre
+        if damageToTake<0:
+            damageToTake=3
+
+        #tegner damage-numbers for inkommende angrep
         if not self.playable:
             self.particles.append(DamageNumber(round(damageToTake), [5,-5], self.spriteHandler.particlePos))
         else:
             self.particles.append(DamageNumber(round(damageToTake), [-5,-5], self.spriteHandler.particlePos))
+
+        #skriver critical hit om truffet med crit
         if critHit:
             if not self.playable:
                 self.particles.append(DamageNumber("CRITICAL HIT", [-5,-2], self.spriteHandler.particlePos))
             else:
                 self.particles.append(DamageNumber("CRITICAL HIT", [5,-2], self.spriteHandler.particlePos))
 
+            #fjerner (endelig) skade
+            self.currentHealth-=damageToTake
 
-
-
-        self.currentHealth-=damageToTake
-
-
+        #spiller animasjon hurt, og death om en er tom for liv
         self.spriteHandler.setState("Hurt")
         if self.currentHealth<=0:
             self.spriteHandler.setState("Death")
+
+        #spawner blod partikler, skiller mellom spiller og ikke for velocity sin del
         for i in range(30):
             if not self.playable:
                 self.particles.append(Particle([7,7], [self.spriteHandler.particlePos[0], self.spriteHandler.particlePos[1]], [random.randint(-20,151), random.randint(-150,-80)], "red", 12, [0,-12]))
@@ -351,6 +419,7 @@ class PokerMann:
                 self.particles.append(Particle([7,7], [self.spriteHandler.particlePos[0], self.spriteHandler.particlePos[1]], [random.randint(-151,20), random.randint(-150,-80)], "red", 12, [0,-12]))
 
 
+    #håndterer museklikk på knapper
     def input(self, mousePos):
         keystrokes = py.key.get_pressed()
 
@@ -366,24 +435,36 @@ class PokerMann:
         elif mousePos[0]> settings.WW/2 and  (settings.WH-100<mousePos[1]<settings.WH):
             if py.mouse.get_pressed()[0]:
                 self.useAbility(3)
+
+
+    #kjører alle funksjoner nødvendig pr frame
     def update(self, surf, mousePos):
 
+        #tegner og håndterer partikler
         for p in self.particles:
             p.update(surf)
             if p.lifetime<0:
                 self.particles.remove(p)
 
+        #oppdaterer verdier, tegner riktig UI
         if self.playable:
             self.drawOptions(surf)
+            self.input(mousePos)
+            self.currentXP = saves.save_1["player"]["currentXP"]
+            self.XPtoNextLevel = saves.save_1["player"]["XPtoLevelUp"]
+            self.level = saves.save_1["player"]["lvl"]
         else:
             self.enemyInfo(surf)
-
+            self.currentXP = saves.save_1["enemy"]["currentXP"]
+            self.XPtoNextLevel = saves.save_1["enemy"]["XPtoLevelUp"]
+            self.level = saves.save_1["enemy"]["lvl"]
         self.drawHealthBar(surf)
 
-        if self.playable: self.input(mousePos)
 
+        #oppdaterer spriteHandler-klassen med surf og posisjon å tegne på
         self.spriteHandler.update(surf, [(mousePos[0]-settings.WW/2)/50, (mousePos[1]-settings.WH/2)/100])
 
+        #håndterer AI-angrep basert på AITimer timeren :)
         if not self.playable:
             self.AITimer-=0.2
             if -1< self.AITimer<1:
@@ -391,6 +472,7 @@ class PokerMann:
                 self.useAbility(random.randint(0, len(self.abilities)-1))
                 self.AITimer=-100
 
+        # om død: dø
         if self.currentHealth<=0:
             if not self.dead: self.spriteHandler.setState("Death")
             self.dead=True
@@ -422,10 +504,11 @@ class Ability():
 
     def use(self):
 
-
+        #endrer tur til motstander
         self.target.yourTurn = True
         self.target.AITimer = random.randint(3,11)
 
+        #om angrep er succesfull, gjør skade, eller heal deg selv
         if random.randrange(0,101)<self.successrate:
             print(f"Utfører {self.name}")
             if self.damage != 0:
@@ -433,14 +516,49 @@ class Ability():
             if self.healingFactor != 0:
                 self.character.heal(self.healingFactor, self.randomness)
 
+            #self explanatory B)
+            if self.name == "Yo mama joke":
+                self.urMomJoke()
+
             return True
         else:
 
 
             print(f"{self.name} feilet")
             return False
+    def urMomJoke(self):
+        #masse yo mama vitser fra internett :)
+        jokes = [
+            "Yo mama's so fat, when she fell I didn't laugh, but the sidewalk cracked up.",
+            "Yo mama's so fat, when she skips a meal, the stock market drops.",
+            "Yo mama's so fat, it took me two buses and a train to get to her good side.",
+            "Yo mama's so fat, when she goes camping, the bears hide their food.",
+            "Yo mama's so fat, if she buys a fur coat, a whole species will become extinct.",
+            "Yo mama's so fat, she stepped on a scale and it said: 'To be continued.'",
+            "Yo momma is so fat, I swerved to miss her in my car and ran out of gas.",
+            "Yo mama's so fat, when she wears high heels, she strikes oil.",
+            "Yo mama's so fat, she was overthrown by a small militia group, and now she's known as the Republic of Yo Mama.",
+            "Yo mama is so fat, not even Dora can explore her.",
+            "Yo mama is so fat, she gets group insurance.",
+            "Yo mama's so fat, when she went to KFC and the cashier asked what size bucket she wanted, she said, 'The one on the roof!'",
+            "Yo mama is so big, her belt size is equator.",
+            "Yo mama so fat, when she talks to herself, it's a long-distance call.",
+            "Yo mama so fat, she left in high heels and came back in flip flops.",
+            "Yo mama is so fat that when she hauls ass, she has to make two trips.",
+            "Yo mama so fat, her job title is Spoon and Fork Operator.",
+            "Yo mama so fat, when she walked past the TV, I missed three episodes.",
+            "Yo momma's so fat, when she sits around the house, she SITS AROUND the house.",
+            "Yo mama's so fat, her car has stretch marks.",
+            "Yo mama's so fat, she can't even jump to a conclusion.",
+            "Yo mama's so fat, her blood type is Ragu.",
+            "Yo mama's so fat, if she was a Star Wars character, her name would be Admiral Snackbar.",
+            "Yo mama's so fat, she brought a spoon to the Super Bowl."
+        ]
+        #legger til en partikkel med joken på, for jokes tihi
+        self.character.particles.append(DamageNumber(jokes[random.randint(0,len(jokes)-1)], [0, -2], [settings.WW/4, settings.WH/2], False, 25))
 
 
+#et generelt partikkel
 class Particle:
     def __init__(self, size, pos, velocity, color, lifetime, damping = [0,0], image="nah"):
         self.pos = pos
@@ -453,18 +571,21 @@ class Particle:
         self.image = image
 
 
+    #undersøker om man skal tegne bilde eller ikke, og tegner
     def draw(self, plane):
         if self.image =="nah":
             py.draw.rect(plane, self.color, self.rect)
         else:
             plane.blit(py.transform.scale(py.image.load(self.image),(24,24)), (self.pos[0], self.pos[1]))
 
+    #håndterer velocity
     def move(self):
         self.pos[0] += self.velocity[0]/10
         self.pos[1] += self.velocity[1]/10
         self.velocity[0] -= self.damping[0]
         self.velocity[1] -= self.damping[1]
 
+    #oppdaterer andre funkjsoner, reduserer lifetime pr frame
     def update(self, plane):
         self.rect = py.rect.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
         self.move()
@@ -472,8 +593,9 @@ class Particle:
         self.lifetime-=0.3
 
 
+#Burde være sub-kategori av partikkel, tegner tall og tekst på samme prinsipp som vanlig partikkel
 class DamageNumber:
-    def __init__(self, damage, velocity, pos, crit=False):
+    def __init__(self, damage, velocity, pos, crit=False, lifetime=5):
         if crit:
             self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 34)
         else:
@@ -483,7 +605,7 @@ class DamageNumber:
         self.rect.x = pos[0]
         self.rect.y = pos[1]
         self.velocity = velocity
-        self.lifetime = 5
+        self.lifetime = lifetime
 
     def draw(self, surf):
         surf.blit(self.txt, self.rect)
@@ -496,7 +618,7 @@ class DamageNumber:
         self.move()
         self.lifetime-=0.3
 
-
+#ubrukt, generell knapp
 class Button:
     def __init__(self, text, pos, size, bevel = -1):
         self.text = text
@@ -517,45 +639,6 @@ class Button:
     def update(self, plane, mousepos):
         self.draw(plane)
         self.inputHandler(mousepos)
-
-
-
-mann = PokerMann(
-    "Jens",
-    SpriteHandler(1,True),
-    10,
-    150,
-    [],
-    True
-)
-
-pikk = PokerMann(
-    "Fjomperompe",
-    SpriteHandler(2),
-    4,
-    110,
-    []
-)
-
-mann.abilities = \
-[
-    Ability("Klæss", mann, pikk, 10, 10, 2, "Attack1", 90),
-    Ability("Mediter", mann, pikk, 0, 0, 10, "Throw", 65, 30),
-    Ability("SMÆKK SMÆKK", mann, pikk, 15, 50, 10, "Attack2", 75),
-    Ability("YEET", mann, pikk, 100, 25, 2, "Throw", 10)
-]
-
-pikk.abilities = \
-    [
-        Ability("Klæss", pikk, mann, 10, 10, 2, "Attack1", 90),
-        Ability("Klæss", pikk, mann, 10, 10, 2, "Attack1", 90),
-        Ability("Mediter", pikk, mann, 0, 0, 10, "Throw", 50, 50),
-        Ability("SMÆKK SMÆKK", pikk, mann, 24, 50, 10, "Attack2", 50),
-        Ability("YEET", pikk, mann, 100, 25, 2, "Throw", 10)
-    ]
-
-
-
 
 
 #   c8nwfjxp
