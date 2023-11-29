@@ -182,6 +182,7 @@ class PokerMann:
         self.target = ""
         self.XPtoNextLevel = 100
         self.currentXP = 0
+        self.buttons =[]
 
     #oppdaterer verdi i abilies
     def refreshTarget(self, target):
@@ -344,6 +345,8 @@ class PokerMann:
             textRect.x = settings.WW/10 +xIncrease
             textRect.y = settings.WH/2+settings.WH/3 + yIncrease
             surf.blit(text, textRect)
+
+
             if xIncrease ==0:
                 xIncrease+=settings.WW/2+80
             else:
@@ -403,8 +406,8 @@ class PokerMann:
             else:
                 self.particles.append(DamageNumber("CRITICAL HIT", [5,-2], self.spriteHandler.particlePos))
 
-            #fjerner (endelig) skade
-            self.currentHealth-=damageToTake
+        #fjerner (endelig) skade
+        self.currentHealth-=damageToTake
 
         #spiller animasjon hurt, og death om en er tom for liv
         self.spriteHandler.setState("Hurt")
@@ -450,14 +453,14 @@ class PokerMann:
         if self.playable:
             self.drawOptions(surf)
             self.input(mousePos)
-            self.currentXP = saves.save_1["player"]["currentXP"]
-            self.XPtoNextLevel = saves.save_1["player"]["XPtoLevelUp"]
-            self.level = saves.save_1["player"]["lvl"]
+            self.currentXP = settings.currentSave["player"]["currentXP"]
+            self.XPtoNextLevel = settings.currentSave["player"]["XPtoLevelUp"]
+            self.level = settings.currentSave["player"]["lvl"]
         else:
             self.enemyInfo(surf)
-            self.currentXP = saves.save_1["enemy"]["currentXP"]
-            self.XPtoNextLevel = saves.save_1["enemy"]["XPtoLevelUp"]
-            self.level = saves.save_1["enemy"]["lvl"]
+            self.currentXP = settings.currentSave["enemy"]["currentXP"]
+            self.XPtoNextLevel = settings.currentSave["enemy"]["XPtoLevelUp"]
+            self.level = settings.currentSave["enemy"]["lvl"]
         self.drawHealthBar(surf)
 
 
@@ -476,6 +479,7 @@ class PokerMann:
         if self.currentHealth<=0:
             if not self.dead: self.spriteHandler.setState("Death")
             self.dead=True
+
 
 
 
@@ -503,7 +507,7 @@ class Ability():
         self.target = target
 
     def use(self):
-
+        print(self.character.name, self.target.name)
         #endrer tur til motstander
         self.target.yourTurn = True
         self.target.AITimer = random.randint(3,11)
@@ -618,27 +622,69 @@ class DamageNumber:
         self.move()
         self.lifetime-=0.3
 
-#ubrukt, generell knapp
-class Button:
-    def __init__(self, text, pos, size, bevel = -1):
+
+class Label:
+    def __init__(self, text, pos, size):
         self.text = text
         self.pos = pos
         self.size = size
-        self.bevel = bevel
-        self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 22)
+        self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', self.size)
         self.txt = self.font.render(str(text), True, settings.colors["TXT"])
         self.textRect = self.txt.get_rect()
-        self.textRect.x = pos[0]+ self.textRect.width/2
-        self.textRect.y = pos[1]+ self.textRect.width/2
+        self.textRect.x = pos[0]- self.textRect.width/2
+        self.textRect.y = pos[1]- self.textRect.height/2
     def draw(self, plane):
         plane.blit(self.txt, self.textRect)
 
+
+class Button:
+    def __init__(self, text, pos, size, bevel, type = None):
+
+        self.text = text
+
+        self.label = Label(text, pos, size)
+        self.type = type
+        self.bevel = bevel
+        self.buttonRect = self.label.textRect
+        self.buttonRect.width  += 20
+        self.buttonRect.height += 20
+        self.bgColor = settings.colors["UI"]
+        self.txtColor = settings.colors["HP"]
+    def draw(self, plane):
+        py.draw.rect(plane, self.bgColor, py.rect.Rect(self.buttonRect.x-10, self.buttonRect.y-10, self.buttonRect.width, self.buttonRect.height), 0, self.bevel)
+        plane.blit(self.label.txt, self.label.textRect)
+
+
     def inputHandler(self, mousepos):
-        pass
+        if (self.buttonRect.x-10 < mousepos[0] < self.buttonRect.x+self.buttonRect.width) and (self.buttonRect.y-10 < mousepos[1] < self.buttonRect.y+self.buttonRect.height) :
+            self.bgColor = settings.colors["HP"]
+            self.txtColor = settings.colors["UI"]
+            if py.mouse.get_pressed()[0]:
+
+                match self.type:
+                    case "FPSup":
+                        settings.FPS+=1
+                        return True
+                    case "FPSdown":
+                        settings.FPS-=1
+                        return True
+                    case "mousemove": settings.respondToMouse*=-1
+                    case "bg": settings.background*=-1
+                    case "back": return True
+                    case "start": return True
+
+
+        else:
+            self.bgColor = settings.colors["UI"]
+            self.txtColor = settings.colors["HP"]
+        self.label.txt = self.label.font.render(str(self.text), True, self.txtColor)
+
 
     def update(self, plane, mousepos):
         self.draw(plane)
+        self.label.draw(plane)
         self.inputHandler(mousepos)
+
 
 
 #   c8nwfjxp
