@@ -182,7 +182,7 @@ class PokerMann:
         self.target = ""
         self.XPtoNextLevel = 100
         self.currentXP = 0
-        self.buttons =[]
+
 
     #oppdaterer verdi i abilies
     def refreshTarget(self, target):
@@ -564,9 +564,9 @@ class Ability():
 
 #et generelt partikkel
 class Particle:
-    def __init__(self, size, pos, velocity, color, lifetime, damping = [0,0], image="nah"):
+    def __init__(self, size, pos, velocity, color, lifetime, damping=[0, 0], image="nah"):
         self.pos = pos
-        self.size = [size[0]*random.randint(9,12)/10, size[1]*random.randint(9,12)/10]
+        self.size = [size[0] * random.randint(9, 12) / 10, size[1] * random.randint(9, 12) / 10]
         self.rect = py.rect.Rect(pos[0], pos[1], size[0], size[1])
         self.velocity = velocity
         self.damping = damping
@@ -574,55 +574,51 @@ class Particle:
         self.lifetime = lifetime
         self.image = image
 
-
-    #undersøker om man skal tegne bilde eller ikke, og tegner
     def draw(self, plane):
-        if self.image =="nah":
+        if self.image == "nah":
             py.draw.rect(plane, self.color, self.rect)
         else:
-            plane.blit(py.transform.scale(py.image.load(self.image),(24,24)), (self.pos[0], self.pos[1]))
+            plane.blit(py.transform.scale(py.image.load(self.image), (24, 24)), (self.pos[0], self.pos[1]))
 
-    #håndterer velocity
     def move(self):
-        self.pos[0] += self.velocity[0]/10
-        self.pos[1] += self.velocity[1]/10
+        self.pos[0] += self.velocity[0] / 10
+        self.pos[1] += self.velocity[1] / 10
         self.velocity[0] -= self.damping[0]
         self.velocity[1] -= self.damping[1]
 
-    #oppdaterer andre funkjsoner, reduserer lifetime pr frame
     def update(self, plane):
         self.rect = py.rect.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
         self.move()
         self.draw(plane)
-        self.lifetime-=0.3
+        self.lifetime -= 0.3
 
 
-#Burde være sub-kategori av partikkel, tegner tall og tekst på samme prinsipp som vanlig partikkel
-class DamageNumber:
+# DamageNumber er en utvidelse av Particle
+class DamageNumber(Particle):
     def __init__(self, damage, velocity, pos, crit=False, lifetime=5):
+        #Mækker et generelt partikkel
+        super().__init__([0, 0], pos, velocity, (0, 0, 0), lifetime)
+
         if crit:
             self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 34)
         else:
             self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', 22)
         self.txt = self.font.render(str(damage), True, settings.colors["TXT"])
-        self.rect = self.txt.get_rect()
-        self.rect.x = pos[0]
-        self.rect.y = pos[1]
-        self.velocity = velocity
-        self.lifetime = lifetime
 
     def draw(self, surf):
         surf.blit(self.txt, self.rect)
+
     def move(self):
-        self.rect.x += self.velocity[0]
-        self.rect.y += self.velocity[1]
+        self.pos[0] += self.velocity[0]
+        self.pos[1] += self.velocity[1]
+        self.rect.x, self.rect.y = self.pos  # Update rect based on the new position
 
     def update(self, surf):
         self.draw(surf)
         self.move()
-        self.lifetime-=0.3
+        self.lifetime -= 0.3
 
-
+#Generelt tekst-objekt
 class Label:
     def __init__(self, text, pos, size):
         self.text = text
@@ -631,60 +627,62 @@ class Label:
         self.font = py.font.Font('sprites/free-pixel-art-tiny-hero-sprites/Font/Planes_ValMore.ttf', self.size)
         self.txt = self.font.render(str(text), True, settings.colors["TXT"])
         self.textRect = self.txt.get_rect()
-        self.textRect.x = pos[0]- self.textRect.width/2
-        self.textRect.y = pos[1]- self.textRect.height/2
+        self.textRect.x = pos[0] - self.textRect.width / 2
+        self.textRect.y = pos[1] - self.textRect.height / 2
+
     def draw(self, plane):
         plane.blit(self.txt, self.textRect)
 
 
-class Button:
-    def __init__(self, text, pos, size, bevel, type = None):
+# Button er en utvidelse av Label med en bakgrunn og input-handling
+class Button(Label):
+    def __init__(self, text, pos, size, bevel, type=None):
 
-        self.text = text
+        super().__init__(text, pos, size)
 
-        self.label = Label(text, pos, size)
         self.type = type
         self.bevel = bevel
-        self.buttonRect = self.label.textRect
-        self.buttonRect.width  += 20
-        self.buttonRect.height += 20
+
+        #hentes fra Label
+        self.textRect.width += 20
+        self.textRect.height += 20
         self.bgColor = settings.colors["UI"]
         self.txtColor = settings.colors["HP"]
-    def draw(self, plane):
-        py.draw.rect(plane, self.bgColor, py.rect.Rect(self.buttonRect.x-10, self.buttonRect.y-10, self.buttonRect.width, self.buttonRect.height), 0, self.bevel)
-        plane.blit(self.label.txt, self.label.textRect)
 
+    def draw(self, plane):
+        py.draw.rect(plane, self.bgColor, py.rect.Rect(self.textRect.x - 10, self.textRect.y - 10, self.textRect.width, self.textRect.height), 0, self.bevel)
+        super().draw(plane)
 
     def inputHandler(self, mousepos):
-        if (self.buttonRect.x-10 < mousepos[0] < self.buttonRect.x+self.buttonRect.width) and (self.buttonRect.y-10 < mousepos[1] < self.buttonRect.y+self.buttonRect.height) :
+
+        if (self.textRect.x - 10 < mousepos[0] < self.textRect.x + self.textRect.width) and (
+                self.textRect.y - 10 < mousepos[1] < self.textRect.y + self.textRect.height):
             self.bgColor = settings.colors["HP"]
             self.txtColor = settings.colors["UI"]
             if py.mouse.get_pressed()[0]:
-
                 match self.type:
                     case "FPSup":
-                        settings.FPS+=1
+                        settings.FPS += 1
                         return True
                     case "FPSdown":
-                        settings.FPS-=1
+                        settings.FPS -= 1
                         return True
-                    case "mousemove": settings.respondToMouse*=-1
-                    case "bg": settings.background*=-1
+                    case "mousemove": settings.respondToMouse *= -1
+                    case "bg": settings.background *= -1
                     case "back": return True
                     case "start": return True
-
-
         else:
             self.bgColor = settings.colors["UI"]
             self.txtColor = settings.colors["HP"]
-        self.label.txt = self.label.font.render(str(self.text), True, self.txtColor)
 
+        #hentes fra label
+        self.txt = self.font.render(str(self.text), True, self.txtColor)
 
     def update(self, plane, mousepos):
         self.draw(plane)
-        self.label.draw(plane)
+        super().draw(plane)
         self.inputHandler(mousepos)
 
 
-
+#https://www.figma.com/file/LZvW7dB3kNMN1cAMkhsagK/Welcome-to-FigJam?type=whiteboard&node-id=0%3A1&t=ltU1Sqb2Di6CHko0-1
 #   c8nwfjxp
