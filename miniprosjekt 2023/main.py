@@ -1,14 +1,22 @@
 import pygame as py
 from pygame.locals import *
-import classes, settings, random, cProfile, random_gen, saves
+import classes, settings, random, cProfile, random_gen, saves, saves_V2
 py.init()
 
 #definerer noen startverdier
-clock=py.time.Clock()
+clock = py.time.Clock()
 player = random_gen.createRandom(True)
 enemy = random_gen.createRandom()
 player.refreshTarget(enemy)
 enemy.refreshTarget(player)
+
+py.mixer.music.load("trackTest.mp3")
+
+py.mixer.music.play(-1)
+py.mixer.music.set_volume(0.75)
+
+
+
 
 #logikk for å lage nye tilfeldige karakterer
 newCharTimer = 5
@@ -34,15 +42,18 @@ def newChars(victor):
             settings.currentSave["player"]["currentXP"]+=random.randint(10,40)
             settings.currentSave["enemy"]["currentXP"]+=random.randint(50,150)
 
+        saves_V2.updateSave()
 
         #sjekker om spiller eller fiendes XP er mer enn det som kreves for å levle opp, ez dubs
-        if settings.currentSave["player"]["currentXP"]>settings.currentSave["player"]["XPtoLevelUp"]:
+        if int(saves_V2.loadSave()["player"]["currentXP"])>int(saves_V2.loadSave()["player"]["XPtoLevelUp"]):
             settings.currentSave["player"]["lvl"]+= 1
             settings.currentSave["player"]["XPtoLevelUp"]+=100 + settings.currentSave["player"]["lvl"]*25
 
-        if settings.currentSave["enemy"]["currentXP"]>settings.currentSave["enemy"]["XPtoLevelUp"]:
+        if int(saves_V2.loadSave()["enemy"]["currentXP"])>int(saves_V2.loadSave()["enemy"]["XPtoLevelUp"]):
             settings.currentSave["enemy"]["lvl"]+= 1
             settings.currentSave["enemy"]["XPtoLevelUp"]+=100 + settings.currentSave["enemy"]["lvl"]*25
+
+        saves_V2.updateSave()
 
         #oppdaterer abilities
         player.refreshTarget(enemy)
@@ -65,6 +76,7 @@ b1 = classes.Button("FPS up", [settings.WW/2, settings.WH/2-100], 20,4, "FPSup")
 b2 = classes.Button("FPS down", [settings.WW/2, settings.WH/2-50], 20,4, "FPSdown")
 b3 = classes.Button("TOGGLE PARALAXING", [settings.WW/2, settings.WH/2], 20,4, "mousemove")
 b4 = classes.Button("TOGGLE BACKGROUND", [settings.WW/2, settings.WH/2+50], 20,4, "bg")
+wipe = classes.Button("WIPE SAVE", [settings.WW/2, settings.WH/2+250], 20,4, "wipe")
 
 #toggleSettingsButtons
 b5 = classes.Button("BACK", [settings.WW/2, settings.WH/2+150], 20,4, "back")
@@ -72,10 +84,11 @@ b6 = classes.Button("Settings", [settings.WW/2, settings.WH/2-350], 20,4, "back"
 
 l1 = classes.Label("GAME SETTINGS", [settings.WW/2, settings.WH/20], 30)
 l2 = classes.Label(f"Current FPS:",[settings.WW/2, settings.WH/2-175],20)
+l3 = classes.Label(f"(CLOSES GAME, RESTART MANUALLY)",[settings.WW/2, settings.WH/2+300],20)
 liveFPS = classes.Label(f"{settings.FPS}",[settings.WW/2, settings.WH/2-150],30)
 
-settingsButtons = [b1, b2, b3, b4, b5]
-settingsLabels = [l1, l2]
+settingsButtons = [b1, b2, b3, b4, b5, wipe]
+settingsLabels = [l1, l2, l3]
 gameplay = True
 settingsPage = False
 introPage = True
@@ -146,6 +159,10 @@ def gameLoop():
                 FPS+=1
             if b2.inputHandler(py.mouse.get_pos()):
                 FPS-=1
+            if wipe.inputHandler(py.mouse.get_pos()):
+                saves_V2.delete_json_file("save_data.json")
+                py.quit()
+                exit()
 
 
             py.display.update()

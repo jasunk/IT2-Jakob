@@ -1,7 +1,12 @@
 import pygame as py
 from pygame.locals import *
-import random, settings, saves
+import random, settings, saves, saves_V2
+import gtts, time
 
+
+py.init()
+
+py.mixer.init() # add this line
 
 #Splitter opp spritesheet for animasjoner
 def splitSheet(sheet, imgSize, split, index, flip = 0):
@@ -14,7 +19,7 @@ def splitSheet(sheet, imgSize, split, index, flip = 0):
     img = py.transform.flip(img, flip, 0)
     return img
 
-#Definerer animasjoner for 3 forskjellige monstre
+#Definerer animasjoner for 3 forskjellige monstre (listcomprehention my love <3)
 spriteType = {
     1:{
         "Idle":[splitSheet(py.image.load("sprites/free-pixel-art-tiny-hero-sprites/1 Pink_Monster/Pink_Monster_Idle.png"),                  [128, 32], [4,1], [i, 0]) for i in range(4)],
@@ -85,6 +90,7 @@ class Background:
 class SpriteHandler():
 
     def __init__(self, spriteNum,  player=False, shouldWalk = True):
+        print(spriteNum)
         self.spriteNum = spriteNum
         self.shouldWalk = shouldWalk
         self.frame = 0
@@ -109,7 +115,11 @@ class SpriteHandler():
 
     def draw(self, plane, mousepos):
         #Velger bilde å tegne, angir en posisjon for partikler å spawne fra
-        imageToDraw = spriteType[self.spriteNum][self.state][self.frame]
+        try:
+            imageToDraw = spriteType[self.spriteNum][self.state][self.frame]
+        except IndexError:
+            imageToDraw = spriteType[self.spriteNum]["Idle"][0]
+            self.frame=0
         self.particlePos = [self.pos[0]+(32*3)/2, self.pos[1]+(32*3)/2]
         #flip sprite om ikke spiller
         if not self.player:
@@ -124,7 +134,10 @@ class SpriteHandler():
             imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
             self.activePos[0] += (self.pos[0])/80
         if self.activePos[0]> self.pos[0] and not self.player and self.shouldWalk:
-            imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
+            try:
+                imageToDraw = spriteType[self.spriteNum]["Run"][self.frame]
+            except IndexError:
+                imageToDraw = spriteType[self.spriteNum]["Idle"][0]
             imageToDraw = py.transform.flip(imageToDraw,1,0)
             self.activePos[0] -= (self.enemySpeed)/90
 
@@ -184,6 +197,8 @@ class PokerMann:
         self.currentXP = 0
 
 
+
+
     #oppdaterer verdi i abilies
     def refreshTarget(self, target):
         self.target=target
@@ -226,11 +241,15 @@ class PokerMann:
 
 
 
+
     #helbredings-logikk
     def heal(self, factor, randomness):
         #tar inn healingfactor, og endrer basert på ability-randomness
         toHeal = factor +(random.randint(-1,1)*randomness)
 
+
+        healSound = py.mixer.Sound(f"playerAudio/heal.wav")
+        py.mixer.Sound.play(healSound)
         #undersøker om helse blir over max, eller ikke
         if self.currentHealth + toHeal>self.initHealth:
             self.currentHealth=self.initHealth
@@ -375,6 +394,10 @@ class PokerMann:
     #håndterer å ta skade
     def takeDamage(self, damage, critChance, randomness):
 
+        ouch = py.mixer.Sound(f"playerAudio/hitHurt{random.randint(0,3)}.wav")
+        py.mixer.Sound.play(ouch)
+
+
         #init-verdier
         damageToTake = 0
         critHit = False
@@ -453,14 +476,14 @@ class PokerMann:
         if self.playable:
             self.drawOptions(surf)
             self.input(mousePos)
-            self.currentXP = settings.currentSave["player"]["currentXP"]
-            self.XPtoNextLevel = settings.currentSave["player"]["XPtoLevelUp"]
-            self.level = settings.currentSave["player"]["lvl"]
+            self.currentXP = saves_V2.loadSave()["player"]["currentXP"]
+            self.XPtoNextLevel = saves_V2.loadSave()["player"]["XPtoLevelUp"]
+            self.level = saves_V2.loadSave()["player"]["lvl"]
         else:
             self.enemyInfo(surf)
-            self.currentXP = settings.currentSave["enemy"]["currentXP"]
-            self.XPtoNextLevel = settings.currentSave["enemy"]["XPtoLevelUp"]
-            self.level = settings.currentSave["enemy"]["lvl"]
+            self.currentXP = saves_V2.loadSave()["enemy"]["currentXP"]
+            self.XPtoNextLevel = saves_V2.loadSave()["enemy"]["XPtoLevelUp"]
+            self.level = saves_V2.loadSave()["enemy"]["lvl"]
         self.drawHealthBar(surf)
 
 
@@ -559,10 +582,14 @@ class Ability():
             "Yo mama's so fat, she brought a spoon to the Super Bowl."
         ]
         #legger til en partikkel med joken på, for jokes tihi
-        self.character.particles.append(DamageNumber(jokes[random.randint(0,len(jokes)-1)], [0, -2], [settings.WW/4, settings.WH/2], False, 25))
+        joke = jokes[random.randint(0,len(jokes)-1)]
+        self.character.particles.append(DamageNumber(joke, [0, -2], [settings.WW/4, settings.WH/2], False, 25))
+        self.character.speak(12)
 
 
-#et generelt partikkel
+
+
+        #et generelt partikkel
 class Particle:
     def __init__(self, size, pos, velocity, color, lifetime, damping=[0, 0], image="nah"):
         self.pos = pos
@@ -660,6 +687,8 @@ class Button(Label):
             self.bgColor = settings.colors["HP"]
             self.txtColor = settings.colors["UI"]
             if py.mouse.get_pressed()[0]:
+                buttonSound = py.mixer.Sound(f"playerAudio/button.wav")
+                py.mixer.Sound.play(buttonSound)
                 match self.type:
                     case "FPSup":
                         settings.FPS += 1
@@ -671,6 +700,7 @@ class Button(Label):
                     case "bg": settings.background *= -1
                     case "back": return True
                     case "start": return True
+                    case "wipe": return True
         else:
             self.bgColor = settings.colors["UI"]
             self.txtColor = settings.colors["HP"]
