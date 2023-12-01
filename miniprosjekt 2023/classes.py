@@ -584,7 +584,7 @@ class Ability():
         #legger til en partikkel med joken på, for jokes tihi
         joke = jokes[random.randint(0,len(jokes)-1)]
         self.character.particles.append(DamageNumber(joke, [0, -2], [settings.WW/4, settings.WH/2], False, 25))
-        self.character.speak(12)
+
 
 
 
