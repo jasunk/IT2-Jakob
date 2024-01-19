@@ -1,11 +1,12 @@
 import random
+import pygameinputs
 
 import pygame as py
 from pygame.locals import *
 import math
 from settings import *
 from maps import *
-
+from numba import njit
 
 
 class AnimationSet():
@@ -51,9 +52,10 @@ class KinematicBody(py.sprite.Sprite):
         self.alive = True
         self.deathImg = py.image.load("sprites/topdown_shooter_assets/sEnemyDead.png")
         self.deathImg = py.transform.scale(self.deathImg, (self.deathImg.get_rect().width*self.size, self.deathImg.get_rect().height*self.size))
-        self.rect = py.rect.Rect(pos[0], pos[1], self.deathImg.get_size()[0], self.deathImg.get_size()[0])
+        self.rect = py.rect.Rect(pos[0]+leftSidePadding, pos[1], self.deathImg.get_size()[0], self.deathImg.get_size()[0])
         self.game = game
 
+        self.bulletSprites = py.sprite.LayeredUpdates()
     def check_collision(self, direction):
 
         if direction == "x":
@@ -87,12 +89,18 @@ class KinematicBody(py.sprite.Sprite):
                     self.vel[0]*=-1
                     self.vel[1]*=-1
 
+    def hitScaling(self):
+        self.size = self.hitSize
+        self.vel[0]*=-1
+        self.vel[1]*=-1
+
     def checkIfExit(self):
         hits = py.sprite.spritecollide(self, self.game.exits, False)
 
         if hits:
 
             nextRoom(self.game.currentRoomIndex+1, self)
+            self.allocation_points +=1
             self.game.currentRoomIndex+=1
             self.game.load_level()
             self.game.spawnEnemies(self, (2+self.game.currentRoomIndex),[3,7], [15,30], 20, 15 )
@@ -104,6 +112,21 @@ class KinematicBody(py.sprite.Sprite):
             #nextRoom(self.game.currentRoomIndex-1, self)
             #self.game.currentRoomIndex-=1
             #self.game.load_level()
+    def checkIfShot(self):
+        hits = py.sprite.spritecollide(self, self.bulletSprites, False)
+        if hits and self.alive and hits[0].canHit:
+            self.hp -= hits[0].dmg
+            if hits[0].dmg >=50:
+                hits[0].dmg *= 0.8
+            else:
+                hits[0].canHit = False
+                hits[0].lifetime=-1
+                hits[0].dmg=0
+
+            for i in range(10):
+                size = random.randint(3,8)
+                self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
+            self.hitScaling()
 
     def addVelocity(self,velArray):
         self.vel[0] += velArray[0]
@@ -138,10 +161,6 @@ class KinematicBody(py.sprite.Sprite):
         for b in self.bullets:
             b.update(surf)
 
-    def hitScaling(self):
-        self.size = self.hitSize
-        self.vel[0]*=-1
-        self.vel[1]*=-1
 
 
     def draw(self, surf):
@@ -149,6 +168,7 @@ class KinematicBody(py.sprite.Sprite):
             self.move()
         if self.hp <=0:
             self.alive = False
+        self.checkIfShot()
 
 
         if self.size > self.targetSize:
@@ -239,16 +259,7 @@ class Enemy(KinematicBody):
             self.alive= False
             self.despawnTimer-=1
         self.spriteList = self.animations["run"+self.dir]
-        for b in self.player.bullets:
-            if (self.rect.x< b.rect.x< self.rect.x+60) and (self.rect.y< b.rect.y< self.rect.y+60) and self.alive:
-                self.hitScaling()
-                self.hp-=b.dmg
-                if b.dmg >=50:
-                    b.dmg *= 0.5
-                else: b.lifetime=-1
-                for i in range(10):
-                    size = random.randint(3,8)
-                    self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
+
 
 
 
@@ -268,10 +279,20 @@ class Player(KinematicBody):
 
 
         self.dir = "Right"
-
+        self.personalGun = {
+            "dmg":3,
+            "recoil": 10,
+            "fireRate":10,
+            "size":[1,1]
+        }
+        self.allocation_points = 0
         self.spriteList = self.animations["run"+self.dir]
         self.dashCooldown = 20
+        self.guns = [Gun(self, self.personalGun["dmg"], self.personalGun["recoil"], self.personalGun["fireRate"], self.personalGun["size"], self.game),Gun(self, 2, 1.2,0, [1, 0.5], self.game), Gun(self, 18, 10,10, [0.75, 0.75], self.game), Gun(self, 15, 15,5, [1.5,1.5], self.game), Gun(self, 50, 40,15, [3, 1.5], self.game), Gun(self, 100, 140,15, [6, 3], self.game)]
+        self.activeGunIndex = 0
         self.game.spawnEnemies(self, (2+self.game.currentRoomIndex),[3,7], [15,30], 20, 15 )
+        self.dashSound = py.mixer.Sound("sounds/dash.wav")
+
 
 
 
@@ -285,6 +306,7 @@ class Player(KinematicBody):
             for i in range(10):
                 self.particles.append(Particle([5,5], [self.rect.x, self.rect.y],[random.randrange(-10,10), random.randrange(-10,10)], "gray", 15, 0.7))
             self.dashCooldown=20
+            py.mixer.Sound.play(self.dashSound)
             diagonalSpeed *=5
             usedSpeed*=5
 
@@ -326,15 +348,102 @@ class Player(KinematicBody):
         else:
             self.spriteList = self.animations["idle" + self.dir]
 
-    def playerUI(self, surf):
-        headerFont = py.font.Font("sprites/Pixelify_Sans/static/PixelifySans-Bold.ttf")
-        _ = py.rect.Rect(1000,0,400,1000)
+    def update_personal_gun(self):
+        if self.personalGun["dmg"]<0: self.personalGun["dmg"]=0
+        self.personalGun["size"][0] = self.personalGun["dmg"]/10 + 1
+        self.personalGun["size"][1] = self.personalGun["dmg"]/12 + 1
+
+        if self.personalGun["fireRate"]<0: self.personalGun["fireRate"]=0
+        if self.personalGun["recoil"]==0: self.personalGun["recoil"]=0.1
+        self.guns[0] = Gun(self, self.personalGun["dmg"], self.personalGun["recoil"], self.personalGun["fireRate"], self.personalGun["size"], self.game)
+    def gunStatHandler(self, surf, mousePos):
+        damageUp = Button([1700, 200], [30, 30], "+", 1)
+        dmg_label = Label([1600, 200], 20, "DAMAGE", "black")
+        damageDown = Button([1500, 200], [30, 30], "-", -1)
+
+        fireRateUp = Button([1700, 250], [30, 30], "+", 1)
+        fireRate_label = Label([1600, 250], 20, "FIRERATE", "black")
+        fireRateDown = Button([1500, 250], [30, 30], "-", -1)
+
+        recoilUp = Button([1700, 300], [30, 30], "+", 1)
+        recoildLabel = Label([1600, 300], 20, "RECOIL", "black")
+        recoilDown = Button([1500, 300], [30, 30], "-", -1)
+
+        dmg_stat = Label([1600, 350],20, f"Damage: {self.personalGun['dmg']}", "black")
+        fireRate_stat = Label([1600, 370],20, f"Firerate: {self.personalGun['fireRate']}", "black")
+        recoil_stat = Label([1600, 390],20, f"Recoil: {self.personalGun['recoil']}", "black")
+
+        availible_mods = Label([1600, 410],20, f"Modifications available: {self.allocation_points}", "black")
+
+        preset_section_height = 930
+        preset_title = Label([1600, preset_section_height], 30, "GUN PRESETS", "black")
+        smg_preset = Button([1450, preset_section_height+40], [90, 30], "SMG")
+        pistol_preset = Button([1550, preset_section_height+40], [90, 30], "COCK")
+        AR_preset = Button([1650, preset_section_height+40], [90, 30], "AK-69")
+        sniper_preset = Button([1750, preset_section_height+40], [90, 30], "WAP")
+
+
+        if py.mouse.get_pressed()[0]:
+
+            if self.allocation_points>0:
+                if damageUp.is_pressed(mousePos):
+                    self.personalGun["dmg"]+=1
+                    self.allocation_points-=1
+                if recoilDown.is_pressed(mousePos):
+                    self.personalGun["recoil"]-=5
+                    self.allocation_points-=1
+                if fireRateUp.is_pressed(mousePos):
+                    self.personalGun["fireRate"]-=0.5
+                    self.allocation_points-=1
+
+
+            if damageDown.is_pressed(mousePos):
+                self.personalGun["dmg"]-=1
+                self.allocation_points+=1
+            if fireRateDown.is_pressed(mousePos):
+                self.personalGun["fireRate"]+=2
+                self.allocation_points+=2
+            if recoilUp.is_pressed(mousePos):
+                self.personalGun["recoil"]+=5
+                self.allocation_points+=1
+
+
+
+
+            if smg_preset.is_pressed(mousePos):self.activeGunIndex=1
+            if pistol_preset.is_pressed(mousePos):self.activeGunIndex=2
+            if AR_preset.is_pressed(mousePos):self.activeGunIndex=3
+            if sniper_preset.is_pressed(mousePos):self.activeGunIndex=4
+
+
+        buttons = [damageUp, damageDown, fireRateUp, fireRateDown, recoilUp, recoilDown, smg_preset, pistol_preset, AR_preset, sniper_preset]
+        labels = [preset_title, recoildLabel, fireRate_label, dmg_label, dmg_stat, fireRate_stat, recoil_stat, availible_mods]
+
+        for l in labels:
+            l.draw(surf)
+
+        for b in buttons:
+            if b.is_pressed(mousePos): self.update_personal_gun()
+            b.update(surf, mousePos)
+
+    def playerUI(self, surf, mousePos):
+
+        headerFont = py.font.Font("sprites/Pixelify_Sans/static/PixelifySans-Bold.ttf", 64)
+        text = headerFont.render("PLAYER", True, "black")
+        _ = py.rect.Rect(1000+leftSidePadding,0,400,1000)
         py.draw.rect(surf,"pink", _)
+        textRect = text.get_rect()
+        textRect.center = (1600, 100)
+        surf.blit(text, textRect)
+        self.gunStatHandler(surf, mousePos)
 
     def update(self, surf, mousePos):
+
+        self.guns[self.activeGunIndex].update(surf, mousePos)
         self.input(mousePos)
-        self.playerUI(surf)
+
         super().draw(surf)
+        self.playerUI(surf, mousePos)
 
 class Gun:
     def __init__(self, parent, damage, recoil, cooldownSTD, size, game, knockBack=True):
@@ -357,6 +466,13 @@ class Gun:
         self.cooldownSTD = cooldownSTD
         self.active= True
         self.game = game
+
+        if cooldownSTD<3:
+            self.shootSound = py.mixer.Sound("sounds/shoot_light.wav")
+        elif cooldownSTD<8:
+            self.shootSound = py.mixer.Sound("sounds/shoot_def.wav")
+        else:
+            self.shootSound = py.mixer.Sound("sounds/shoot_deep.wav")
 
     def positionSelf(self):
         target_pos = [0, 0]
@@ -388,11 +504,15 @@ class Gun:
 
     def shoot(self, mouse_pos):
         vector = [mouse_pos[0]-self.currentPos[0], mouse_pos[1]-self.currentPos[1]]
-        if (py.key.get_pressed()[K_SPACE] or py.mouse.get_pressed()[0]) and self.cooldown<0:
+        if (py.key.get_pressed()[K_SPACE] or py.mouse.get_pressed()[0]) and self.cooldown<0 and mouse_pos[0]<1000:
+            py.mixer.Sound.play(self.shootSound)
             self.cooldown=self.cooldownSTD
             lengdeDia = math.sqrt((vector[0]**2 + vector[1]**2)/2)
+            _ = Bullet(self.currentPos,[vector[0]/(lengdeDia/15), vector[1]/(lengdeDia/15)],self.dmg, self.size, self.game )
 
-            self.parent.bullets.append(Bullet(self.currentPos,[vector[0]/(lengdeDia/15), vector[1]/(lengdeDia/15)],self.dmg, self.size, self.game ))
+            self.parent.bullets.append(_)
+            for e in self.game.enemies:
+                e.bulletSprites.add(_)
             self.currentPos[0] += vector[0]/(lengdeDia/self.recoil)
             self.currentPos[1] += vector[1]/(lengdeDia/self.recoil)
             if self.knockBack:
@@ -445,10 +565,12 @@ class Bullet(py.sprite.Sprite):
         self.dmg = dmg
         self.lifetime = 50
         self.img = py.image.load("sprites/topdown_shooter_assets/sBullet.png").convert_alpha()
+        self.img = py.transform.scale(self.img, (self.img.get_size()[0]*size, self.img.get_size()[1]*size))
         self.imgRect = self.img.get_rect()
-        self.rect = py.rect.Rect(pos[0], pos[1],self.imgRect.width*size, self.imgRect.height*size, center=pos)
-        self.img = py.transform.scale(self.img, (self.imgRect.width*size, self.imgRect.height*size))
+        self.rect = py.rect.Rect(pos[0], pos[1],self.imgRect.width, self.imgRect.height, center=pos)
+
         self.game = game
+        self.canHit = True
 
     def wallBounce(self, dir):
 
@@ -482,7 +604,7 @@ class Tiler(py.sprite.Sprite):
         self.sprite = py.image.load(img).convert()
         self.sprite = py.transform.scale(self.sprite, (WH/10, WH/10))
         self.pos = pos
-        self.rect = py.rect.Rect(pos[0]*self.sprite.get_size()[0]-self.sprite.get_size()[0], pos[1]*self.sprite.get_size()[0]-self.sprite.get_size()[0], self.sprite.get_size()[0], self.sprite.get_size()[1])
+        self.rect = py.rect.Rect(pos[0]*self.sprite.get_size()[0]-self.sprite.get_size()[0]+leftSidePadding, pos[1]*self.sprite.get_size()[0]-self.sprite.get_size()[0], self.sprite.get_size()[0], self.sprite.get_size()[1])
 
 
     def draw(self, surf):
@@ -499,10 +621,22 @@ class Game:
         self.entrances = py.sprite.LayeredUpdates()
         self.currentRoomIndex = 1
         self.enemies = []
+        self.enemyIcon = py.image.load("sprites/topdown_shooter_assets/enemyIcon.png").convert_alpha()
+
+    def displayEnemies(self, surf):
+        for i in range(len(self.enemies)-1):
+            current_enemy = self.enemies[i]
+            displayRect = py.rect.Rect(50,100+100*i,300,100)
+            img = self.enemyIcon
+            img_rect = img.get_rect()
+            img_rect.x, img_rect.y = 100,100+i*100
+            py.draw.rect(surf,"beige", displayRect)
+            surf.blit()
 
 
     def load_level(self):
         self.tiles = []
+        self.enemies = []
         self.collisionTiles = py.sprite.LayeredUpdates()
         self.exits = py.sprite.LayeredUpdates()
         self.entrances = py.sprite.LayeredUpdates()
@@ -511,7 +645,7 @@ class Game:
                 if rooms[self.currentRoomIndex]["map"][i][j]==0:
                     self.tiles.append(Tiler("sprites/grass.png",[(j),i]))
                 if rooms[self.currentRoomIndex]["map"][i][j]==1:
-                    _ = Tiler("sprites/rasse.jpg",[(j),i])
+                    _ = Tiler("sprites/wall.png",[(j),i])
                     self.collisionTiles.add(_)
                     self.tiles.append(_)
                 if rooms[self.currentRoomIndex]["map"][i][j]==2:
@@ -547,4 +681,50 @@ class Game:
         self.enemies = [e for e in self.enemies if e.despawnTimer>0]
         for e in self.enemies:
             e.update(surf)
+
+class Label:
+    def __init__(self, pos, size, displayText, color):
+        self.currentColor = color
+        self.font = py.font.Font("sprites/Pixelify_Sans/static/PixelifySans-Medium.ttf", int(size))
+        self.text = self.font.render(str(displayText),False,self.currentColor)
+        self.textRect = self.text.get_rect()
+        self.textRect.center = (pos[0], pos[1])
+
+    def draw(self, surf):
+        surf.blit(self.text, self.textRect)
+class Button(Label):
+    def __init__(self, pos, size, displayText, sound_vibe = 0, inactiveColor="beige", hoverColor="gray"):
+        self.inactiveColor = inactiveColor
+        self.hoverColor = hoverColor
+        self.currentColor = self.inactiveColor
+        self.rect = py.rect.Rect(pos[0]-size[0]/2, pos[1]-size[1]/2, size[0], size[1])
+        self.clickable = True
+        if sound_vibe >0: self.sound = py.mixer.Sound("sounds/button_up.wav")
+        elif sound_vibe<0: self.sound = py.mixer.Sound("sounds/button_down.wav")
+        else: self.sound = False
+
+        super().__init__(pos, size[1]/1.5, displayText, hoverColor)
+
+
+
+    def is_pressed(self, mousePos):
+        if self.rect.left<mousePos[0]<self.rect.right and self.rect.top<mousePos[1]<self.rect.bottom and py.mouse.get_pressed()[0] :
+
+            if self.clickable:
+                if not self.sound:
+                    print("no sound file")
+                else:
+                    self.sound.play()
+                    self.sound.set_volume(0.2)
+                return True
+            self.clickable = False
+        if not py.mouse.get_pressed()[0]:
+            self.clickable=True
+
+    def draw(self, surf):
+        py.draw.rect(surf, self.inactiveColor,self.rect)
+        super().draw(surf)
+    def update(self, surf, mousepos):
+        self.is_pressed(mousepos)
+        self.draw(surf)
 

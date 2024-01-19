@@ -1,4 +1,5 @@
 import random, copy
+
 #_ = bakke
 #1 = vegg
 #2 = Exit
@@ -99,6 +100,8 @@ dottedMap2 = [
 def randomMap():
 
     return random.choice([emptyMap, extMap, squareMap, dottedMap1, dottedMap2])
+
+
 def changeEntranceExit(map, ent, ext):
 
     tempMap = copy.deepcopy(map)
