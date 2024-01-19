@@ -37,13 +37,14 @@ class KinematicBody(py.sprite.Sprite):
     def __init__(self, pos, speed, health, game, friction = 1, canBeHit=True, size=1.5):
         super().__init__()
         self.spriteList = [py.image.load("sprites/topdown_shooter_assets/sBullet.png")]
+
         self.frameForFrameShift = 0
         self.frame = 0
         self.pos = pos
         self.vel = [0,0]
         self.size = size
         self.targetSize = size
-        self.hitSize = size*1.3
+        self.hitSize = size*1.5
         self.speed = speed
         self.friction = friction
         self.inithp = health
@@ -54,11 +55,14 @@ class KinematicBody(py.sprite.Sprite):
         self.deathImg = py.image.load("sprites/topdown_shooter_assets/sEnemyDead.png")
         self.deathImg = py.transform.scale(self.deathImg, (self.deathImg.get_rect().width*self.size, self.deathImg.get_rect().height*self.size))
         self.rect = py.rect.Rect(pos[0]+leftSidePadding, pos[1], self.deathImg.get_size()[0], self.deathImg.get_size()[0])
+        self.rect.center = (pos[0]+leftSidePadding, pos[1])
         self.game = game
         self.hitsound = py.mixer.Sound("sounds/hit.wav")
         self.dieSound = py.mixer.Sound("sounds/die.wav")
 
-        self.bulletSprites = py.sprite.LayeredUpdates()
+
+        self.bulletSprites = py.sprite.Group()
+
     def check_collision(self, direction):
 
         if direction == "x":
@@ -92,10 +96,7 @@ class KinematicBody(py.sprite.Sprite):
                     self.vel[0]*=-1
                     self.vel[1]*=-1
 
-    def hitScaling(self):
-        self.size = self.hitSize
-        self.vel[0]*=-1
-        self.vel[1]*=-1
+
 
     def checkIfExit(self):
         hits = py.sprite.spritecollide(self, self.game.exits, False)
@@ -107,6 +108,7 @@ class KinematicBody(py.sprite.Sprite):
             self.game.currentRoomIndex+=1
             self.game.load_level()
             self.game.spawnEnemies(self, (2+self.game.currentRoomIndex),[3,7], [15,30], 20, 15 )
+            if isinstance(self, Player): self.playerUI([0,0])
 
 
         #hits = py.sprite.spritecollide(self, self.game.entrances, False)
@@ -115,22 +117,25 @@ class KinematicBody(py.sprite.Sprite):
             #nextRoom(self.game.currentRoomIndex-1, self)
             #self.game.currentRoomIndex-=1
             #self.game.load_level()
+
     def checkIfShot(self):
         hits = py.sprite.spritecollide(self, self.bulletSprites, False)
         if hits and self.alive and hits[0].canHit:
             self.hitsound.play()
-            self.hp -= hits[0].dmg
-            if hits[0].dmg >=50:
-                hits[0].dmg *= 0.8
-            else:
-                hits[0].canHit = False
-                hits[0].lifetime=-1
-                hits[0].dmg=0
+            for h in hits:
+                self.addVelocity([h.vel[0]/self.size, h.vel[1]/self.size])
+                self.hp -= h.dmg
+                if h.dmg >=50:
+                    h.dmg *= 0.8
+                else:
+                    h.canHit = False
+                    h.lifetime=-1
+                    h.dmg=0
 
-            for i in range(10):
+            for i in range(20):
                 size = random.randint(3,8)
                 self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
-            self.hitScaling()
+
             self.game.display()
 
     def addVelocity(self,velArray):
@@ -169,8 +174,7 @@ class KinematicBody(py.sprite.Sprite):
 
 
     def draw(self, surf):
-
-
+        if self.game.showHitbox: py.draw.rect(surf, "red", self.rect)
 
         if self.size > self.targetSize:
             self.size-=0.25
@@ -187,6 +191,7 @@ class KinematicBody(py.sprite.Sprite):
             surf.blit(scaledSprite, (self.rect.x, self.rect.y))
 
         self.checkIfShot()
+
         if self.alive:
             self.move()
         if self.hp <=0:
@@ -203,6 +208,10 @@ class KinematicBody(py.sprite.Sprite):
                 self.frame=0
         else:
             self.frameForFrameShift+=1
+
+
+
+
 
 
 class Enemy(KinematicBody):
@@ -228,12 +237,7 @@ class Enemy(KinematicBody):
         self.name = random.choice(self.game.randomEnemyNames).upper()
         self.game.display()
 
-    def chaseState(self):
-        vector = [self.player.rect.x-self.rect.x, self.player.rect.y-self.rect.y]
-        lengdeDia = math.sqrt((vector[0]**2 + vector[1]**2)/2)
-        if lengdeDia==0:lengdeDia=1
-        self.vel[0] = vector[0]/(lengdeDia/5)
-        self.vel[1] = vector[1]/(lengdeDia/5)
+
     def is_point_inside_circle(self):
         distance = math.sqrt((self.player.rect.x - (self.rect.x+30))**2 + (self.player.rect.y - (self.rect.y+30))**2)
         return distance < self.circle_radius
@@ -245,8 +249,7 @@ class Enemy(KinematicBody):
         else:
             self.changeDir-=1
 
-        if self.is_point_inside_circle():
-            self.chaseState()
+
         if (self.vel[0] and self.vel[1]) == 0:
             self.frame=0
 
@@ -257,7 +260,8 @@ class Enemy(KinematicBody):
     def input(self):
         pass
     def update(self, surf):
-
+        if self.rect.x<400 or self.rect.x>1400 or self.rect.y<0 or self.rect.y >1000:
+            self.alive=False
         if self.alive:self.seekState()
         self.draw(surf)
         if self.vel[0]<0:
@@ -266,6 +270,7 @@ class Enemy(KinematicBody):
             self.dir = "Right"
 
         if not self.alive:
+            self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
             self.spriteList = self.animations["dead"]
             self.alive= False
             self.despawnTimer-=1
@@ -273,6 +278,43 @@ class Enemy(KinematicBody):
 
 
 
+class ChaseEnemy(Enemy):
+    def __init__(self, pos, speed, health, damage, seekArea, player,game, size=1.5 ):
+        super().__init__(pos, speed, health, damage, seekArea, player,game, size)
+        self.type = "CHASER"
+        if size >2:
+            self.type = "BIG CHASER"
+    def update(self, surf):
+        super().update(surf)
+    def chaseState(self):
+        vector = [self.player.rect.x-self.rect.x, self.player.rect.y-self.rect.y]
+        lengdeDia = math.sqrt((vector[0]**2 + vector[1]**2)/2)
+        if lengdeDia==0:lengdeDia=1
+        self.vel[0] = vector[0]/(lengdeDia/5)
+        self.vel[1] = vector[1]/(lengdeDia/5)
+
+    def seekState(self):
+        super().seekState()
+        if self.is_point_inside_circle():
+            self.chaseState()
+
+class RunEnemy(Enemy):
+    def __init__(self, pos, speed, health, damage, seekArea, player,game, size=1.3 ):
+        super().__init__(pos, int(speed*2), int(health/1.5), damage, int(seekArea/2), player,game, int(size))
+        self.type = "EVADER"
+    def update(self, surf):
+        super().update(surf)
+    def runState(self):
+        vector = [self.player.rect.x-self.rect.x, self.player.rect.y-self.rect.y]
+        lengdeDia = math.sqrt((vector[0]**2 + vector[1]**2)/2)
+        if lengdeDia==0:lengdeDia=1
+        self.vel[0] = -vector[0]/(lengdeDia/5)
+        self.vel[1] = -vector[1]/(lengdeDia/5)
+
+    def seekState(self):
+        super().seekState()
+        if self.is_point_inside_circle():
+            self.runState()
 
 class Player(KinematicBody):
 
@@ -302,10 +344,13 @@ class Player(KinematicBody):
         self.guns = [Gun(self, self.personalGun["dmg"], self.personalGun["recoil"], self.personalGun["fireRate"], self.personalGun["size"], self.game),Gun(self, 2, 1.2,0, [1, 0.5], self.game), Gun(self, 18, 10,10, [0.75, 0.75], self.game), Gun(self, 15, 15,5, [1.5,1.5], self.game), Gun(self, 50, 40,15, [3, 1.5], self.game), Gun(self, 100, 140,15, [6, 3], self.game)]
         self.activeGunIndex = 0
         self.game.spawnEnemies(self, (2+self.game.currentRoomIndex),[3,7], [15,30], 20, 15 )
+        self.game.player.add(self)
         self.dashSound = py.mixer.Sound("sounds/dash.wav")
         self.headerFont = returnFont(64)
         self.UI = py.Surface((400,1000))
         self.playerUI([0,0])
+
+
 
 
 
@@ -351,9 +396,9 @@ class Player(KinematicBody):
         else:
             moving = True
 
-        if mousePos[0]<self.pos[0]:
+        if mousePos[0]<self.rect.x:
             self.dir="Left"
-        elif mousePos[0]>self.pos[0]:
+        elif mousePos[0]>self.rect.x:
             self.dir="Right"
 
         if moving:
@@ -579,9 +624,9 @@ class Bullet(py.sprite.Sprite):
         self.vel = [vel[0], vel[1]]
         self.dmg = dmg
         self.lifetime = 50
-        self.img = py.image.load("sprites/topdown_shooter_assets/sBullet.png").convert_alpha()
-        self.img = py.transform.scale(self.img, (self.img.get_size()[0]*size, self.img.get_size()[1]*size))
-        self.imgRect = self.img.get_rect()
+        self.image = py.image.load("sprites/topdown_shooter_assets/sBullet.png").convert_alpha()
+        self.image = py.transform.scale(self.image, (self.image.get_size()[0]*size, self.image.get_size()[1]*size))
+        self.imgRect = self.image.get_rect()
         self.rect = py.rect.Rect(pos[0], pos[1],self.imgRect.width, self.imgRect.height, center=pos)
 
         self.game = game
@@ -610,7 +655,8 @@ class Bullet(py.sprite.Sprite):
         self.wallBounce("x")
         self.rect.y += self.vel[1]
         self.wallBounce("y")
-        surf.blit(self.img,(self.rect.x, self.rect.y))
+        if self.game.showHitbox: py.draw.rect(surf, "red", self.rect)
+        surf.blit(self.image,(self.rect.x, self.rect.y))
 
 
 class Tiler(py.sprite.Sprite):
@@ -643,6 +689,9 @@ class Game:
         self.map_surf = py.Surface((1400, 1000))
         self.leftDisplay = py.Surface((leftSidePadding,1000))
         self.player = ""
+        self.showHitbox = False
+        self.pickups = []
+        self.player = py.sprite.GroupSingle()
 
 
 
@@ -653,16 +702,18 @@ class Game:
         py.draw.rect(self.leftDisplay, "pink", leftRect)
         for i in range(len([e for e in self.enemies if e.alive])):
             current_enemy = [e for e in self.enemies if e.alive][i]
-            displayRect = py.rect.Rect(50,400+100*i,300,100)
+            displayRect = py.rect.Rect(50,400+102*i,300,100)
             img = self.enemyIcon
             img_rect = img.get_rect()
             img_rect.x, img_rect.y = 75,435+i*100
             py.draw.rect(self.leftDisplay,"beige", displayRect)
-            name = Label([200, 430+100*i],15,f"Name: {current_enemy.name}","black" )
+            name = Label([200, 420+102*i],15,f"Name: {current_enemy.name}","black" )
+            type = Label([200, 435+102*i],13,f"Type: {current_enemy.type}","black" )
             name.draw(self.leftDisplay)
+            type.draw(self.leftDisplay)
 
-            hp_bar = py.rect.Rect(120, 450+i*100,(current_enemy.hp/current_enemy.inithp)*200, 20)
-            hp = Label([150, 460+i*100],15, f"{current_enemy.hp} / {current_enemy.inithp}", "white")
+            hp_bar = py.rect.Rect(120, 450+i*102,(current_enemy.hp/current_enemy.inithp)*200, 20)
+            hp = Label([150, 460+i*102],15, f"{current_enemy.hp} / {current_enemy.inithp}", "white")
             py.draw.rect(self.leftDisplay, "red", hp_bar)
             hp.draw(self.leftDisplay)
             self.leftDisplay.blit(img, img_rect)
@@ -698,17 +749,29 @@ class Game:
         self.update_map()
 
 
+    def chooseRandomEnemy(self,p, speedRange, healthRange, damage):
+        _ = random.randrange(0,100)
 
+        if _<50:
+            return ChaseEnemy(
+                [random.randint(100,WH-150),random.randint(100,WH-150)],
+                random.randrange(speedRange[0], speedRange[1]),
+                random.randint(healthRange[0], healthRange[1]),
+                damage,500,p,self)
+
+        elif _<100:
+            return RunEnemy(
+                [random.randint(100,WH-150),random.randint(100,WH-150)],
+                random.randrange(speedRange[0], speedRange[1]),
+                random.randint(healthRange[0], healthRange[1]),
+                damage,500,p,self)
+        else: return
     def spawnEnemies(self, p, amount, speedRange, healthRange, damage, bigSpawnChance):
         for i in range(amount):
             if random.randrange(0,100) > bigSpawnChance:
-                self.enemies.append(Enemy(
-                    [random.randint(100,WH-150),random.randint(100,WH-150)],
-                    random.randrange(speedRange[0], speedRange[1]),
-                    random.randint(healthRange[0], healthRange[1]),
-                    damage,500,p,self))
+                self.enemies.append(self.chooseRandomEnemy(p,speedRange,healthRange,damage))
             else:
-                self.enemies.append(Enemy(
+                self.enemies.append(ChaseEnemy(
                     [random.randint(100,WH-150),random.randint(100,WH-150)],
                     random.randrange(speedRange[0], speedRange[1])/2,
                     random.randint(healthRange[0], healthRange[1])*3,
@@ -720,12 +783,23 @@ class Game:
     def draw_level(self, surf):
 
         surf.blit(self.map_surf,(0,0))
+
     def update(self, surf, player):
+
+        keys = py.key.get_pressed()
+        if keys[K_r]: self.showHitbox = False
+        if keys[K_t]: self.showHitbox = True
+
         self.draw_level(surf)
         self.enemies = [e for e in self.enemies if e.despawnTimer>0]
         self.display_draw(surf)
+        pups = [p for p in self.pickups if p.lifetime>0]
+
         for e in self.enemies:
             e.update(surf)
+
+        for p in pups:
+            p.update(surf)
 
 
 class Dialog:
@@ -819,3 +893,32 @@ def introScreen(game, surf, mousePos):
     play_b = Button([WW/2, WH/2],[200,75], "PLAY", 0,False, "black", "white")
     if play_b.is_pressed(mousePos): game.state = "game"
     play_b.update(surf, mousePos)
+
+
+class Pickup(py.sprite.Sprite):
+    def __init__(self, pos, sprite, lifetime, game):
+        self.img = sprite.convert_alpha()
+        self.game = game
+        self.rect = self.img.get_rect()
+
+        self.rect.x, self.rect.y = pos
+        self.lifetime = lifetime
+        game.pickups.append(self)
+
+    def playerDetector(self):
+        hits = py.sprite.spritecollide(self, self.game.player, False)
+        if hits:
+            return [True, hits[0]]
+            self.lifetime=-1
+        return [False]
+    def update(self, surf):
+        self.lifetime-=1
+        surf.blit(self.img, self.rect)
+
+class HealthPickup(Pickup):
+    def __init__(self, pos, game):
+        super().__init__(pos,py.image.load("sprites/hp_pu.png"),20, game)
+
+    def update(self, surf):
+        super().update(surf)
+        if self.playerDetector()[0]: self.playerDetector()[1].hp+=10
