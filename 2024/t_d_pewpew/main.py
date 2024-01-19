@@ -2,12 +2,12 @@ import random
 import pygame as py
 from pygame.locals import *
 from classes import *
-py.init()
-
+import cProfile
 from settings import *
-from maps import *
 
-flags = DOUBLEBUF | py.HWSURFACE | FULLSCREEN | SCALED
+
+py.init()
+flags = DOUBLEBUF | HWSURFACE | FULLSCREEN | SCALED
 surf = py.display.set_mode((WW, WH),flags, 16)
 
 
@@ -23,10 +23,14 @@ p = Player([500,500], 10, 100, game)
 
 
 
-
 bgImg = py.image.load("sprites/topdown_shooter_assets/sMap.png").convert_alpha()
 bgImg = py.transform.scale(bgImg, (1155,1155))
 py.mouse.set_cursor(py.SYSTEM_CURSOR_CROSSHAIR)
+
+
+def gameLoop():
+    game.update(surf, p)
+    p.update(surf, py.mouse.get_pos())
 
 while 1:
 
@@ -37,21 +41,9 @@ while 1:
             py.quit()
             exit()
 
-
-
-    game.draw_level(surf)
-
-
-
-
-
-
-
-
-    game.update(surf)
-    p.update(surf, py.mouse.get_pos())
-
-
+    match game.state:
+        case "game": gameLoop()
+        case "intro": introScreen(game, surf, py.mouse.get_pos())
 
 
     py.display.update()

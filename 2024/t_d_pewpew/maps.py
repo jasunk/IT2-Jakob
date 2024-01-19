@@ -172,10 +172,10 @@ def nextRoom(index, player):
 
     if not index in rooms:
         match getOpposite(lastExit):
-            case "Right": player.rect.x, player.rect.y = 930, 500
-            case "Left": player.rect.x, player.rect.y = 10, 500
-            case "Top": player.rect.x, player.rect.y = 500, 10
-            case "Bottom": player.rect.x, player.rect.y = 500, 930
+            case "Right": player.rect.x, player.rect.y = 930 +400, 500
+            case "Left": player.rect.x, player.rect.y = 10+400, 500
+            case "Top": player.rect.x, player.rect.y = 500+400, 10
+            case "Bottom": player.rect.x, player.rect.y = 500+400, 930
 
         while newExit == getOpposite(lastExit) or newExit==lastExit:
 
@@ -186,10 +186,10 @@ def nextRoom(index, player):
         lastExit = newExit
     else:
         match lastExit:
-            case "Right": player.rect.x, player.rect.y = 110, 500
-            case "Left": player.rect.x, player.rect.y = 890, 500
-            case "Top": player.rect.x, player.rect.y = 500, 110
-            case "Bottom": player.rect.x, player.rect.y = 500, 890
+            case "Right": player.rect.x, player.rect.y = 110+400, 500
+            case "Left": player.rect.x, player.rect.y = 890+400, 500
+            case "Top": player.rect.x, player.rect.y = 500+400, 110
+            case "Bottom": player.rect.x, player.rect.y = 500+400, 890
 
 
 
