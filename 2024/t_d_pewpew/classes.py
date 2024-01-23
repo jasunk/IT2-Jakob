@@ -270,7 +270,7 @@ class Enemy(KinematicBody):
             self.dir = "Right"
 
         if not self.alive:
-            self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
+            #self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
             self.spriteList = self.animations["dead"]
             self.alive= False
             self.despawnTimer-=1
@@ -676,22 +676,27 @@ class Tiler(py.sprite.Sprite):
 
 class Game:
     def __init__(self):
-        self.dia = Dialog(["YOOO KA SKJER?", "Tissefant"], "yeye")
-        self.tiles = []
-        self.collisionTiles = py.sprite.LayeredUpdates()
-        self.exits = py.sprite.LayeredUpdates()
-        self.entrances = py.sprite.LayeredUpdates()
-        self.currentRoomIndex = 1
-        self.enemies = []
         self.state = "intro"
+
+        self.tiles, self.enemies, self.pickups = [], [], []
+        self.collisionTiles, self.exits, self.entrances = py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates()
+
+        self.currentRoomIndex = 1
+
+        self.dia = Dialog(["YOOO KA SKJER?", "Tissefant"], "yeye")
+
         self.randomEnemyNames = ["Rolf", "Frank", "Karl", "Fjomp", "Karsten", "Kornelius", "Albert", "Kurt", "Jens", "Ola", "Skalleknuseren", "Glont", "Sivert"]
         self.enemyIcon = py.image.load("sprites/topdown_shooter_assets/enemyIcon.png").convert_alpha()
+
+        self.player = py.sprite.LayeredUpdates()
+        self.showHitbox = False
+
         self.map_surf = py.Surface((1400, 1000))
         self.leftDisplay = py.Surface((leftSidePadding,1000))
-        self.player = ""
-        self.showHitbox = False
-        self.pickups = []
-        self.player = py.sprite.GroupSingle()
+
+
+
+
 
 
 
@@ -725,11 +730,9 @@ class Game:
 
 
     def load_level(self):
-        self.tiles = []
-        self.enemies = []
-        self.collisionTiles = py.sprite.LayeredUpdates()
-        self.exits = py.sprite.LayeredUpdates()
-        self.entrances = py.sprite.LayeredUpdates()
+        self.tiles, self.enemies, self.pickups = [], [], []
+        self.collisionTiles, self.exits, self.entrances = py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates()
+
         for i in range(0, len(rooms[self.currentRoomIndex]["map"])):
             for j in range(0, len(rooms[self.currentRoomIndex]["map"])):
                 if rooms[self.currentRoomIndex]["map"][i][j]==0:
@@ -752,7 +755,7 @@ class Game:
     def chooseRandomEnemy(self,p, speedRange, healthRange, damage):
         _ = random.randrange(0,100)
 
-        if _<50:
+        if _<75:
             return ChaseEnemy(
                 [random.randint(100,WH-150),random.randint(100,WH-150)],
                 random.randrange(speedRange[0], speedRange[1]),
@@ -774,7 +777,7 @@ class Game:
                 self.enemies.append(ChaseEnemy(
                     [random.randint(100,WH-150),random.randint(100,WH-150)],
                     random.randrange(speedRange[0], speedRange[1])/2,
-                    random.randint(healthRange[0], healthRange[1])*3,
+                    random.randint(healthRange[0], healthRange[1])*2,
                     damage*3,500,p,self,3))
     def update_map(self):
         for t in self.tiles:
@@ -850,8 +853,8 @@ class Button(Label):
         else: self.x_d = 0
 
         self.clickable = True
-        if sound_vibe >0: self.sound = py.mixer.Sound("sounds/button_up.wav")
-        elif sound_vibe<0: self.sound = py.mixer.Sound("sounds/button_down.wav")
+        if sound_vibe   > 0: self.sound = py.mixer.Sound("sounds/button_up.wav")
+        elif sound_vibe < 0: self.sound = py.mixer.Sound("sounds/button_down.wav")
         else: self.sound = False
 
         super().__init__(pos, size[1]/1.5, displayText, self.currentColor[1])
@@ -908,8 +911,9 @@ class Pickup(py.sprite.Sprite):
     def playerDetector(self):
         hits = py.sprite.spritecollide(self, self.game.player, False)
         if hits:
-            return [True, hits[0]]
             self.lifetime=-1
+            return [True, hits[0]]
+
         return [False]
     def update(self, surf):
         self.lifetime-=1
