@@ -18,14 +18,14 @@ p = Player([500,500], 10, 100, game)
 
 
 
-
+c = Crosshair()
 
 
 
 
 bgImg = py.image.load("sprites/topdown_shooter_assets/sMap.png").convert_alpha()
 bgImg = py.transform.scale(bgImg, (1155,1155))
-py.mouse.set_cursor(py.SYSTEM_CURSOR_CROSSHAIR)
+py.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
 
 
 def gameLoop():
@@ -45,6 +45,6 @@ while 1:
         case "game": gameLoop()
         case "intro": introScreen(game, surf, py.mouse.get_pos())
 
-
+    c.update(surf, py.mouse.get_pos())
     py.display.update()
     py.time.Clock().tick(30)

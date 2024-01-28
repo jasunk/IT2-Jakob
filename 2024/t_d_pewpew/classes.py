@@ -197,7 +197,9 @@ class KinematicBody(py.sprite.Sprite):
         if self.hp <=0:
             if self.alive:
                 self.dieSound.play()
-            self.alive = False
+
+                self.alive = False
+                self.game.display()
 
 
         if self.frameForFrameShift>=int(self.size):
@@ -479,7 +481,10 @@ class Player(KinematicBody):
             l.draw(self.UI)
 
         for b in buttons:
-            if b.is_pressed(mousePos): self.update_personal_gun()
+            if b.is_pressed(mousePos):
+                self.update_personal_gun()
+
+
             b.update(self.UI, mousePos)
 
     def playerUI(self, mousePos):
@@ -493,7 +498,7 @@ class Player(KinematicBody):
 
     def drawPlayerUI(self, surf, mousePos):
         surf.blit(self.UI,(1400,0))
-        if mousePos[0]>1400:
+        if mousePos[0]>1400 and py.mouse.get_pressed()[0]:
 
             self.playerUI(mousePos)
 
@@ -626,8 +631,9 @@ class Bullet(py.sprite.Sprite):
         self.lifetime = 50
         self.image = py.image.load("sprites/topdown_shooter_assets/sBullet.png").convert_alpha()
         self.image = py.transform.scale(self.image, (self.image.get_size()[0]*size, self.image.get_size()[1]*size))
-        self.imgRect = self.image.get_rect()
-        self.rect = py.rect.Rect(pos[0], pos[1],self.imgRect.width, self.imgRect.height, center=pos)
+        self.rect = self.image.get_rect()
+
+        self.rect.center = pos
 
         self.game = game
         self.canHit = True
@@ -645,8 +651,6 @@ class Bullet(py.sprite.Sprite):
 
             # Reflect the velocity of the bullet
             self.vel.reflect_ip(normal)
-
-
 
     def update(self, surf):
         self.lifetime-=1
@@ -813,6 +817,7 @@ class Dialog:
         self.char = char
         self.font = returnFont(12)
 
+
     def talk(self):
         if len(self.targetText[self.dialogIndex])>0: self.currentText += self.targetText[self.dialogIndex][0]
         self.targetText[self.dialogIndex] = self.targetText[self.dialogIndex][1:]
@@ -926,3 +931,15 @@ class HealthPickup(Pickup):
     def update(self, surf):
         super().update(surf)
         if self.playerDetector()[0]: self.playerDetector()[1].hp+=10
+
+
+class Crosshair():
+    def __init__(self):
+
+        self.image = py.image.load("sprites/crosshair_.png").convert_alpha()
+        self.image = py.transform.scale(self.image, (40,40))
+        self.rect = self.image.get_rect()
+    def update(self, surf, mousepos):
+
+        self.rect.center = mousepos
+        surf.blit(self.image, self.rect)
