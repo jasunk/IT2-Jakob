@@ -6,7 +6,7 @@ from pygame.locals import *
 import math
 from settings import *
 from maps import rooms, nextRoom
-
+#du er en jævla hore som får meg til å føle meg mindreverdig
 
 
 class AnimationSet():
