@@ -13,7 +13,7 @@ surf = py.display.set_mode((WW, WH),flags, 16)
 
 game = Game()
 game.load_level()
-p = Player([500,500], 10, 100, game)
+game.playerRef = Player([500,500], 10, 1000, game)
 
 
 
@@ -28,9 +28,6 @@ bgImg = py.transform.scale(bgImg, (1155,1155))
 py.mouse.set_cursor((8,8),(0,0),(0,0,0,0,0,0,0,0),(0,0,0,0,0,0,0,0))
 
 
-def gameLoop():
-    game.update(surf, p)
-    p.update(surf, py.mouse.get_pos())
 
 while 1:
 
@@ -42,9 +39,10 @@ while 1:
             exit()
 
     match game.state:
-        case "game": gameLoop()
-        case "intro": introScreen(game, surf, py.mouse.get_pos())
+        case "game": gameLoop(surf, game, py.mouse.get_pos())
+        case "intro": introScreen(surf, game, py.mouse.get_pos())
+        case "gameOver": gameOverScreen(surf, game, py.mouse.get_pos())
 
     c.update(surf, py.mouse.get_pos())
     py.display.update()
-    py.time.Clock().tick(30)
+    py.time.Clock().tick(FPS)
