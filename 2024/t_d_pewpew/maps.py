@@ -180,9 +180,7 @@ def changeEntranceExit(map, ent, ext):
         tempMap[10][5], tempMap[10][6] = 0, 0
 
 
-    for x in tempMap:
-        print(x)
-    print(ent, ext)
+
 
     return tempMap
 
@@ -223,7 +221,7 @@ def nextRoom(index, player):
 
             newExit = getRandomDir()
 
-        print(index, getOpposite(lastExit), newExit)
+
         rooms[index]={"map":changeEntranceExit(randomMap(),getOpposite(lastExit),newExit)}
         lastExit = newExit
     else:

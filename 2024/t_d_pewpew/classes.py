@@ -51,6 +51,7 @@ class KinematicBody(py.sprite.Sprite):
         #Counter som må nå et gitt tall før neste animasjons-frame spilles av, for å animere karakter i lavere FPS enn prosseseringen
         self.frameForFrameShift = 0
         self.frame = 0
+        self.shouldDraw = True
 
         #pos er lowkey pensjonert, bruker eksklusivt rect. vel (velocity) brukes for "smooth" bevegelse
         self.pos = pos
@@ -92,7 +93,7 @@ class KinematicBody(py.sprite.Sprite):
     #sjekker om karakter kolliderer med oppsatte vegger
     def check_collision(self, direction):
         if direction == "x":
-
+            if self.rect.x<leftSidePadding:self.lifetime=-1
             #bruker egen spriteRect og sammenligner med aktive "collisionTiles" (definerte vegger)
             hits = py.sprite.spritecollide(self, self.game.collisionTiles, False)
 
@@ -179,26 +180,28 @@ class KinematicBody(py.sprite.Sprite):
         if self.frame>len(self.spriteList)-1:
             self.frame=0
 
-        if not self.alive:
-            surf.blit(self.deathImg, (self.rect.x, self.rect.y))
-        else:
-
-            scaledSprite = py.transform.scale(self.spriteList[self.frame],(self.spriteList[self.frame].get_size()[0]*self.size,self.spriteList[self.frame].get_size()[1]*self.size))
-            if isinstance(self, Player):
-                surf.blit(scaledSprite, (self.rect.x-10, self.rect.y-10))
+        if self.shouldDraw:
+            if not self.alive:
+                surf.blit(self.deathImg, (self.rect.x, self.rect.y))
             else:
-                surf.blit(scaledSprite, (self.rect.x, self.rect.y))
+
+                scaledSprite = py.transform.scale(self.spriteList[self.frame],(self.spriteList[self.frame].get_size()[0]*self.size,self.spriteList[self.frame].get_size()[1]*self.size))
+                if isinstance(self, Player):
+                    surf.blit(scaledSprite, (self.rect.x-10, self.rect.y-10))
+                else:
+                    surf.blit(scaledSprite, (self.rect.x, self.rect.y))
 
 
 
         if self.alive:
             self.move()
-        if self.hp <=0:
-            if self.alive:
-                self.dieSound.play()
+        if self.hp <=0 and self.alive:
 
-                self.alive = False
-                self.game.display()
+            self.dieSound.play()
+            self.alive = False
+            if random.randint(0,100)>75:self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
+            self.game.updateEnemyLists()
+            self.game.hitlist_update()
 
 
         if self.frameForFrameShift>=int(self.size):
@@ -245,7 +248,8 @@ class Enemy(KinematicBody):
         self.changeDir = 10
         self.despawnTimer = 150
         self.name = random.choice(self.game.randomEnemyNames).upper()
-        self.game.display()
+        self.game.hitlist_update()
+
 
     #undersøker om spiller er innenfor en sirkel med definert radius gitt med seekArea
     def is_point_inside_circle(self):
@@ -273,23 +277,24 @@ class Enemy(KinematicBody):
 
         hits = py.sprite.spritecollide(self, self.game.bulletSprites, False)
 
-        for h in hits:
-            if h.canHit:
-                self.hitsound.play()
-                self.addVelocity([h.vel[0]/self.size, h.vel[1]/self.size])
-                self.hp -= h.dmg
-                if h.dmg >=50:
-                    h.dmg *= 0.8
-                else:
-                    h.canHit = False
-                    h.lifetime=-1
-                    h.dmg=0
+        for h in [h for h in hits if h.canHit]:
 
-                #legger til noen røde partikler som blod
-                for i in range(20):
-                    size = random.randint(3,8)
-                    self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
-                self.game.display()
+            self.hitsound.play()
+            self.addVelocity([h.vel[0]/self.size, h.vel[1]/self.size])
+            self.hp -= h.dmg
+            if h.dmg >=50:
+                h.dmg *= 0.8
+            else:
+                h.canHit = False
+                h.lifetime=-1
+                h.dmg=0
+
+            #legger til noen røde partikler som blod
+            for i in range(int(20*self.game.partikkelfaktor)):
+                size = random.randint(3,8)
+                self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
+            self.game.hitlist_update()
+
 
 
 
@@ -300,7 +305,8 @@ class Enemy(KinematicBody):
         #om utenfor spillområdet -> dø
         if (self.rect.x<400 or self.rect.x>1400 or self.rect.y<0 or self.rect.y >1000) and self.alive:
             self.alive=False
-            self.game.display()
+            self.game.hitlist_update()
+            self.shouldDraw=False
 
         if self.alive:self.seekState()
 
@@ -312,9 +318,8 @@ class Enemy(KinematicBody):
             self.dir = "Right"
 
         if not self.alive:
-            #self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
+
             self.spriteList = self.animations["dead"]
-            self.alive= False
             self.despawnTimer-=1
         self.spriteList = self.animations["run"+self.dir]
 
@@ -402,8 +407,8 @@ class Player(KinematicBody):
 
         self.headerFont = returnFont(30)
         self.infoFont = returnFont(12)
-        self.UI = py.Surface((400,1000))
-        self.tutorialSurf = py.Surface((400,300))
+        self.UI = py.Surface((400,1000),DOUBLEBUF| HWACCEL)
+        self.tutorialSurf = py.Surface((400,300),DOUBLEBUF| HWACCEL)
         self.tutorialUI()
         self.playerUI([0,0])
 
@@ -411,7 +416,7 @@ class Player(KinematicBody):
         self.invincibilityFrameAmount = 10
         self.invincibilityFrameNow = 0
         self.hitsound = py.mixer.Sound("sounds/playerHit.wav")
-        self.game.display()
+        self.game.display("both")
 
     #sjekker om treffer enemy
     def isTouchingEnemy(self):
@@ -419,20 +424,20 @@ class Player(KinematicBody):
 
         hits = py.sprite.spritecollide(self, self.game.enemySprites, False)
         if self.alive and self.invincibilityFrameNow<=0 and hits:
-            for e in hits:
-                if e.alive:
-                    self.invincibilityFrameNow=self.invincibilityFrameAmount
-                    self.hp-=e.dmg
+            for e in [h for h in hits if h.alive]:
 
-                    #får fiende til å sprette motsatt retning
-                    e.vel[0] = (self.rect.x - e.rect.x)/10
-                    e.vel[1] = (self.rect.y - e.rect.y)/10
-                    self.game.display()
-                    self.hitsound.play()
+                self.invincibilityFrameNow=self.invincibilityFrameAmount
+                self.hp-=e.dmg
+                self.game.player_hp_bar_update()
+                #får fiende til å sprette motsatt retning
+                e.vel[0] = (self.rect.x - e.rect.x)/10
+                e.vel[1] = (self.rect.y - e.rect.y)/10
+
+                self.hitsound.play()
                 #legger til noen røde partikler som blod
-                    for i in range(8):
-                        size = random.randint(3,8)
-                        self.particles.append(Particle([size,size],[self.rect.x+20, self.rect.y+20], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
+                for i in range(int(8*self.game.partikkelfaktor)):
+                    size = random.randint(3,8)
+                    self.particles.append(Particle([size,size],[self.rect.x+20, self.rect.y+20], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
         self.invincibilityFrameNow -=1
 
     def checkIfExit(self):
@@ -454,7 +459,7 @@ class Player(KinematicBody):
         diagonalSpeed = math.sqrt((self.speed**2 + self.speed**2)/2)
         self.dashCooldown-=1
         if keystrokes[K_LSHIFT] and self.dashCooldown<0:
-            for i in range(10):
+            for i in range(int(10*self.game.partikkelfaktor)):
                 self.particles.append(Particle([5,5], [self.rect.x, self.rect.y],[random.randrange(-10,10), random.randrange(-10,10)], "gray", 15, 0.7))
             self.dashCooldown=20
             py.mixer.Sound.play(self.dashSound)
@@ -588,12 +593,14 @@ class Player(KinematicBody):
         t4= self.infoFont.render("for å nå neste rom.", True, "black")
         t5= self.infoFont.render("Oppgrader gunneren din ", True, "black")
         t6= self.infoFont.render("med modifikasjonspoeng", True, "black")
+        t7 = self.infoFont.render("ESCAPE for innstillinger", True, "black")
         self.tutorialSurf.blit(t1, (90, 0))
         self.tutorialSurf.blit(t2, (80, 50))
         self.tutorialSurf.blit(t3, (30, 100))
         self.tutorialSurf.blit(t4, (105, 130))
         self.tutorialSurf.blit(t5, (90, 180))
         self.tutorialSurf.blit(t6, (90, 210))
+        self.tutorialSurf.blit(t7, (90, 260))
     def playerUI(self, mousePos):
         text = self.headerFont.render("GUNUPGRADES", True, "black")
         _ = py.rect.Rect(0,0,400,1000)
@@ -642,7 +649,7 @@ class Gun:
         self.dmg = damage
         self.recoil = recoil
         self.parent = parent
-        self.offset = [50, 25]
+        self.offset = [70, 25]
         self.smoothing_factor = [0.5,0.5]
         self.currentPos = [self.parent.rect.x, self.parent.rect.y]
         self.rotation = 0
@@ -667,7 +674,7 @@ class Gun:
         if self.parent.dir == "Left":
             target_pos[0] = self.parent.rect.x - self.offset[0]+40 +self.size*5
         elif self.parent.dir == "Right":
-            target_pos[0] = self.parent.rect.x + self.offset[0]+15+self.size*5
+            target_pos[0] = self.parent.rect.x + self.offset[0]-10+self.size*5
 
 
         target_pos[1] = self.parent.rect.y + self.offset[1] + self.dy/10
@@ -705,7 +712,8 @@ class Gun:
             lengdeDia = math.sqrt((vector[0]**2 + vector[1]**2)/2)
 
             #lager et skuddobjekt
-            _ = Bullet(self.currentPos,[vector[0]/(lengdeDia/15), vector[1]/(lengdeDia/15)],self.dmg, self.size, self.game )
+            bulletSpeedFactor = 16
+            _ = Bullet(self.currentPos,[vector[0]/(lengdeDia/bulletSpeedFactor), vector[1]/(lengdeDia/bulletSpeedFactor)],self.dmg, self.size, self.game )
 
             self.parent.bullets.append(_)
 
@@ -718,7 +726,7 @@ class Gun:
                 self.parent.addVelocity([(vector[0]*self.recoil/5)/(-lengdeDia/5),(vector[1]*self.recoil/5)/(-lengdeDia/5)])
 
             #lager pewpew-ild
-            for i in range(random.randint(5,14)):
+            for i in range(int(random.randint(5,14)*self.game.partikkelfaktor)):
                 self.parent.particles.append(Particle([5*self.size,5*self.size],self.currentPos,[(vector[0]/(lengdeDia/10)+random.randint(-7,7)), (vector[1]/(lengdeDia/5))+random.randint(-7,7)], "yellow", 7, 0.65))
                 self.parent.particles.append(Particle([4*self.size,4*self.size],self.currentPos,[(vector[0]/(lengdeDia/5)+random.randint(-3,3)), (vector[1]/(lengdeDia/5))+random.randint(-3,3)], "red", 5, 0.8))
                 self.parent.particles.append(Particle([5*self.size,5*self.size],self.currentPos,[(vector[0]/(lengdeDia/3)+random.randint(-3,3)), (vector[1]/(lengdeDia/3))+random.randint(-3,3)], "black", 5, 0.8))
@@ -774,7 +782,7 @@ class Particle(py.sprite.Sprite):
 #versjon av partikkel med andre verdier
 class Bullet(Particle):
     def __init__(self, pos, vel, dmg, size, game):
-        super().__init__([1,1], pos, vel, "black", 130, 0.99,"sprites/topdown_shooter_assets/sBullet.png")
+        super().__init__([1,1], pos, vel, "black", 150, 0.99,"sprites/topdown_shooter_assets/sBullet.png")
 
         self.dmg = dmg
 
@@ -785,47 +793,47 @@ class Bullet(Particle):
         self.canHit = True
         self.sound = py.mixer.Sound("sounds/hitwall.wav")
         self.game.bulletSprites.add(self)
+        self.bounceAmount = 3
 
-    def wallhit(self):
+    def wallhit(self, dir="none"):
         hits = py.sprite.spritecollide(self, self.game.collisionTiles, False)
         if hits:
-            self.vel[0] *= -1
-            self.vel[1] *= -1
-            self.lifetime=-1
+            if self.bounceAmount>0:
+                match dir:
+                    case "x":
+                        self.vel[0] *= -1
+                        if self.vel[0]>0: self.rect.x+=15
+                        if self.vel[0]<0: self.rect.x-=15
+
+                    case "y":
+                        self.vel[1] *= -1
+                        if self.vel[1]>0: self.rect.y+=15
+                        if self.vel[1]<0: self.rect.y-=15
+                self.bounceAmount-=1
+            else:
+                self.lifetime=-1
+
             self.sound.play()
-            for i in range(6):
+            for i in range(int(6*self.game.partikkelfaktor)):
                 self.game.playerRef.particles.append(Particle([4,4],[self.rect.x, self.rect.y], [random.randint(-2,2),random.randint(-2,2)],"dark gray",random.randint(5,15) ))
                 self.game.playerRef.particles.append(Particle([4,4],[self.rect.x, self.rect.y], [random.randint(-4,4),random.randint(-4,4)],"yellow",random.randint(5,12) ))
 
-    def enemyhit(self):
-        hits = py.sprite.spritecollide(self, self.game.enemySprites, False)
 
-        for h in hits:
-            h.hitsound.play()
-            h.addVelocity([h.vel[0]/h.size, h.vel[1]/h.size])
-            h.hp -= self.dmg
-            if self.dmg >=50:
-                self.dmg *= 0.8
-            else:
+    def move(self):
+        self.rect.x += self.vel[0]
+        self.wallhit("x")
+        self.rect.y += self.vel[1]
+        self.wallhit("y")
+        self.vel[0] *= self.damping
+        self.vel[1] *= self.damping
+        self.lifetime-=1
 
-                self.lifetime=-1
-                self.dmg=0
-
-        #blod <3
-            for i in range(20):
-                size = random.randint(3,8)
-                h.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
-
-        #oppdaterer helse-displayet til fiender på venstreside
-        self.game.display()
 
     def update(self, surf):
-        self.lifetime-=1
-        self.wallhit()
-        #self.enemyhit()
+
         super().update(surf)
         if self.game.showHitbox: py.draw.rect(surf, "red", self.rect)
-        #surf.blit(self.image,(self.rect.x, self.rect.y))
+
 
 
 #en generell "tile". Lager konstante referanser for å optimalisere
@@ -866,13 +874,19 @@ class Game:
         self.randomEnemyNames = ["Rolf", "Frank", "Karl", "Fjomp", "Karsten", "Kornelius", "Albert", "Kurt", "Jens", "Ola", "Skalleknuseren", "Glont", "Sivert", "Jo-Bjo", "Rekesamleren", "Darth Reidar", "Kvantitativ metode", "Gnom", "Rasmus", "Fredrik", "Frederik", "Theodor", "Arun", "Bebb", "Tor", "Eirk", "Olav", "Silfo", "Ola", "Geir", "Walter Schreifels", "Ariana Grande", "Walter White", "Obama", "Donald Trump", "Ye West", "Supermann", "Glontikus", "Skillingsbolle", "Captain Jack Sparrow", "Luke Skywalker", "Meitemarkspiser"]
         self.enemyIcon = py.image.load("sprites/topdown_shooter_assets/enemyIcon.png").convert_alpha()
 
+        self.volum = 1
+        self.partikkelfaktor = 1
+
+        self.map_surf = py.Surface((1400, 1000),DOUBLEBUF| HWACCEL)
+        self.player_hp_surf = py.Surface((leftSidePadding,200),DOUBLEBUF| HWACCEL)
+        self.hitlist_surf = py.Surface((leftSidePadding,800))
+        self.leftDisplay = py.Surface((leftSidePadding,1000),DOUBLEBUF| HWACCEL)
+
+        self.load_level()
+
         self.player = py.sprite.LayeredUpdates()
-        self.playerRef = ""
+        self.playerRef = Player([500,500], 10, 1000, self)
         self.showHitbox = False
-
-        self.map_surf = py.Surface((1400, 1000))
-        self.leftDisplay = py.Surface((leftSidePadding,1000))
-
 
         py.mixer.music.load("sounds/music.wav")
         py.mixer.music.set_volume(0.5)
@@ -880,52 +894,65 @@ class Game:
 
 
     #leftSideDisplay (fiendeliste)
-    def display(self):
-
-        leftRect = py.rect.Rect(0,0, 400, 1000)
-        py.draw.rect(self.leftDisplay, "pink", leftRect)
-
-        #viser en healthbar for spiller
+    def player_hp_bar_update(self):
+        self.player_hp_surf.fill("pink")
         player_hp_label = Label([200,25],30,"PLAYERHEALTH:", "black")
         hp_bar_bg = py.rect.Rect(25, 50, 350, 30)
         hp_bar = py.rect.Rect(27, 52, 346*(self.playerRef.hp/self.playerRef.inithp), 26)
         hp = Label([100, 64],15, f"HP: {self.playerRef.hp} / {self.playerRef.inithp}", "white")
-        py.draw.rect(self.leftDisplay, "white", hp_bar_bg)
-        py.draw.rect(self.leftDisplay, "red", hp_bar)
-        hp.draw(self.leftDisplay)
-        player_hp_label.draw(self.leftDisplay)
+        py.draw.rect(self.player_hp_surf, "white", hp_bar_bg)
+        py.draw.rect(self.player_hp_surf, "red", hp_bar)
+        hp.draw(self.player_hp_surf)
+        player_hp_label.draw(self.player_hp_surf)
+        self.display("player")
 
-        romNummer = Label([200, 110], 30, f"ROM {self.currentRoomIndex}", "blue")
-        romNummer.draw(self.leftDisplay)
+    def hitlist_update(self):
+        self.hitlist_surf.fill("pink")
+        enemy_list_label = Label([200, 10], 30, "HITLIST:", "black")
+        enemy_list_label.draw(self.hitlist_surf)
 
-        enemy_list_label = Label([200, 150], 30, "HITLIST:", "black")
-        enemy_list_label.draw(self.leftDisplay)
-
-        fromTop =200
-        for i in range(len([e for e in self.enemies if e.alive])):
-            current_enemy = [e for e in self.enemies if e.alive][i]
+        fromTop = 50
+        for i in range(len(self.livingEnemies)):
+            current_enemy = self.livingEnemies[i]
             displayRect = py.rect.Rect(45,fromTop+102*i,310,100)
             img = self.enemyIcon
             img = py.transform.scale(img, [40*(self.enemies[i].scale-0.5),40*(self.enemies[i].scale-0.3)])
             img_rect = img.get_rect()
             img_rect.centerx, img_rect.centery= 85,fromTop+55+i*100
-            py.draw.rect(self.leftDisplay,"beige", displayRect)
+            py.draw.rect(self.hitlist_surf,"beige", displayRect)
             name = Label([200, 20+fromTop+102*i],15,f"{current_enemy.name}","black" )
             type = Label([200, fromTop+35+102*i],13,f"Type: {current_enemy.type}","black" )
-            name.draw(self.leftDisplay)
-            type.draw(self.leftDisplay)
+            name.draw(self.hitlist_surf)
+            type.draw(self.hitlist_surf)
 
             hp_bar = py.rect.Rect(120, fromTop+50+i*102,(current_enemy.hp/current_enemy.inithp)*200, 20)
             hp = Label([150, fromTop+60+i*102],15, f"{current_enemy.hp} / {current_enemy.inithp}", "white")
-            py.draw.rect(self.leftDisplay, "red", hp_bar)
-            hp.draw(self.leftDisplay)
-            self.leftDisplay.blit(img, img_rect)
+            py.draw.rect(self.hitlist_surf, "red", hp_bar)
+            hp.draw(self.hitlist_surf)
+            self.hitlist_surf.blit(img, img_rect)
+            self.display("hitlist")
+    def display(self, newSurf="None"):
+
+        match newSurf:
+            case "player": self.leftDisplay.blit(self.player_hp_surf.convert(), (0,0))
+            case "hitlist":self.leftDisplay.blit(self.hitlist_surf.convert(), (0,200))
+            case "None": print("no new info")
+            case "both":
+                self.hitlist_update()
+                self.player_hp_bar_update()
+                self.leftDisplay.blit(self.player_hp_surf.convert(), (0,0))
+                self.leftDisplay.blit(self.hitlist_surf.convert(), (0,200))
+            case _:      print("Invalid request")
 
 
+        #tegner romnummer
+        romNummer = Label([200, 110], 30, f"ROM {self.currentRoomIndex}", "blue")
+
+        py.draw.rect(self.leftDisplay, "pink", py.rect.Rect(0,100,leftSidePadding,30))
+        romNummer.draw(self.leftDisplay)
 
     def display_draw(self, surf):
         surf.blit(self.leftDisplay, (0,0))
-
 
     def load_level(self):
         self.tiles, self.enemies, self.livingEnemies, self.pickups = [], [], [], []
@@ -949,7 +976,6 @@ class Game:
                     self.entrances.add(_)
                     self.tiles.append(_)
         self.update_map()
-
 
     def chooseRandomEnemy(self,p, speedRange, healthRange, damage):
         _ = random.randrange(0,100)
@@ -993,15 +1019,81 @@ class Game:
 
         surf.blit(self.map_surf,(0,0))
 
-    def update(self, surf):
+
+    def updateEnemyLists(self):
+        self.enemies = [e for e in self.enemies if e.despawnTimer>0]
+        self.livingEnemies = [e for e in self.enemies if e.alive]
+        self.enemySprites = py.sprite.Group(self.livingEnemies)
+
+
+    #settings-skjerm med volumkontroll og mulighet til å lukke spillet samt begrense partikler
+    def settingsScreen(self, surf, mousePos):
+        bg = py.rect.Rect(0,0, WW, WH)
+        py.draw.rect(surf, "pink", bg)
+        title = Label([WW/2, WH/5], 80, "SETTINGS", "Black")
+        title.draw(surf)
+
+        #knapper
+        resume = Button([WW/2, WH/2],[500,75], "FORTSETT SPILL", 0,False, "dark green", "white")
+        if resume.is_pressed(mousePos): self.state = "game"
+
+
+        quit = Button([WW/2, WH-100],[400,75], "LUKK SPILL", 0,False, "red", "white")
+        if quit.is_pressed(mousePos):
+            py.quit()
+            exit()
+
+        volume_label = Label([WW/2, WH/2+200], 30, f"VOLUM: {self.volum*100:.1f}", "black")
+
+        volumeUp = Button([WW/2+200, WH/2+200], [30, 30], "+", 1, False)
+        volumeDown = Button([WW/2-200, WH/2+200], [30, 30], "-", -1, False)
+        if volumeUp.is_pressed(mousePos):
+            self.volum+=0.1
+            py.mixer.music.set_volume(self.volum)
+        if volumeDown.is_pressed(mousePos):
+            self.volum-=0.1
+            py.mixer.music.set_volume(self.volum)
+
+        partikkel_label = Label([WW/2, WH/2+250], 30, f"PARTIKKELFAKTOR: {self.partikkelfaktor:.1f}", "black")
+
+        particleUp = Button([WW/2+200, WH/2+250], [30, 30], "+", 1, False)
+        particleDown = Button([WW/2-200, WH/2+250], [30, 30], "-", -1, False)
+
+        if particleUp.is_pressed(mousePos):
+            self.partikkelfaktor+=0.1
+        if particleDown.is_pressed(mousePos):
+            self.partikkelfaktor-=0.1
+        bs = [resume, quit, volumeUp, volumeDown, particleUp, particleDown]
+        ls = [volume_label, partikkel_label]
+        for b in bs: b.update(surf, mousePos)
+        for l in ls: l.draw(surf)
+
+    def gameOverScreen(self, surf, mousePos):
+        bg = py.rect.Rect(0,0, WW, WH)
+        py.draw.rect(surf, "pink", bg)
+        title = Label([WW/2, WH/3], 40, "GAME OVER", "Black")
+        title.draw(surf)
+        #viser romnummer
+        romNummer = Label([WW/2, WH/2+200], 30, f"DU KOM TIL ROM {self.currentRoomIndex}", "blue")
+        romNummer.draw(surf)
+        play_b = Button([WW/2, WH/2],[300,75], "RESTART", 0,False, "black", "white")
+        if play_b.is_pressed(mousePos):
+            self.state = "game"
+            self.playerRef = Player([500,500], 10, 1000, self)
+            self.currentRoomIndex = 1
+            self.load_level()
+
+        play_b.update(surf, mousePos)
+
+
+    def gameLoop(self, surf, mousePos):
 
         keys = py.key.get_pressed()
         if keys[K_r]: self.showHitbox = False
         if keys[K_t]: self.showHitbox = True
-
+        if keys[K_ESCAPE]: self.state="settings"
         self.draw_level(surf)
-        self.enemies = [e for e in self.enemies if e.despawnTimer>0]
-        self.livingEnemies = [e for e in self.enemies if e.alive]
+        self.updateEnemyLists()
         self.display_draw(surf)
         pups = [p for p in self.pickups if p.lifetime>0]
 
@@ -1010,6 +1102,33 @@ class Game:
 
         for p in pups:
             p.update(surf)
+        self.playerRef.update(surf, py.mouse.get_pos())
+
+
+
+    def introScreen(self, surf, mousePos):
+        bg = py.rect.Rect(0,0, WW, WH)
+        py.draw.rect(surf, "pink", bg)
+        title = Label([WW/2, WH/3], 40, "PANGPANGSKYTESPILL", "Black")
+        title.draw(surf)
+        play_b = Button([WW/2, WH/2],[200,75], "SPILL", 0,False, "black", "white")
+        if play_b.is_pressed(mousePos): self.state = "game"
+        play_b.update(surf, mousePos)
+
+
+    def update(self, surf, mousePos, events):
+        for e in events:
+            if e.type == QUIT:
+                py.quit()
+                exit()
+
+        match self.state:
+            case "game": self.gameLoop(surf, mousePos)
+            case "intro": self.introScreen(surf,  mousePos)
+            case "gameOver": self.gameOverScreen(surf,  mousePos)
+            case "settings": self.settingsScreen(surf, mousePos)
+
+
 
 
 class Dialog:
@@ -1095,9 +1214,6 @@ class Button(Label):
         self.draw(surf)
 
 
-
-
-
 class Pickup(py.sprite.Sprite):
     def __init__(self, pos, sprite, lifetime, game):
         self.img = sprite.convert_alpha()
@@ -1121,11 +1237,13 @@ class Pickup(py.sprite.Sprite):
 
 class HealthPickup(Pickup):
     def __init__(self, pos, game):
-        super().__init__(pos,py.image.load("sprites/hp_pu.png"),20, game)
+        super().__init__(pos,py.transform.scale(py.image.load("sprites/hp_pu.png"),(40,40)),100, game)
 
     def update(self, surf):
         super().update(surf)
-        if self.playerDetector()[0]: self.playerDetector()[1].hp+=10
+        if self.playerDetector()[0]:
+            self.playerDetector()[1].hp+=100
+            self.game.player_hp_bar_update()
 
 
 class Crosshair():
@@ -1139,35 +1257,3 @@ class Crosshair():
         self.rect.center = mousepos
         surf.blit(self.image, self.rect)
 
-def gameOverScreen(surf, game, mousePos):
-    bg = py.rect.Rect(0,0, WW, WH)
-    py.draw.rect(surf, "pink", bg)
-    title = Label([WW/2, WH/3], 40, "GAME OVER", "Black")
-    title.draw(surf)
-    #viser romnummer
-    romNummer = Label([WW/2, WH/2+200], 30, f"DU KOM TIL ROM {game.currentRoomIndex}", "blue")
-    romNummer.draw(surf)
-    play_b = Button([WW/2, WH/2],[300,75], "RESTART", 0,False, "black", "white")
-    if play_b.is_pressed(mousePos):
-        game.state = "game"
-        game.playerRef = Player([500,500], 10, 1000, game)
-        game.currentRoomIndex = 1
-        game.load_level()
-        game.display()
-    play_b.update(surf, mousePos)
-
-
-def gameLoop(surf, game, mousePos):
-    game.update(surf)
-    game.playerRef.update(surf, py.mouse.get_pos())
-
-
-
-def introScreen(surf, game, mousePos):
-    bg = py.rect.Rect(0,0, WW, WH)
-    py.draw.rect(surf, "pink", bg)
-    title = Label([WW/2, WH/3], 40, "PANGPANGSKYTESPILL", "Black")
-    title.draw(surf)
-    play_b = Button([WW/2, WH/2],[200,75], "SPILL", 0,False, "black", "white")
-    if play_b.is_pressed(mousePos): game.state = "game"
-    play_b.update(surf, mousePos)
