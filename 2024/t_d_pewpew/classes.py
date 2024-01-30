@@ -120,17 +120,7 @@ class KinematicBody(py.sprite.Sprite):
                     self.vel[1]*=-1
 
 
-    #samme logikk men annen sammenlikning. Trenger ikke å sjekke retninger uavhengig
 
-
-
-        #hits = py.sprite.spritecollide(self, self.game.entrances, False)
-        #if hits:
-            #nextRoom(self.game.currentRoomIndex-1, self)
-            #self.game.currentRoomIndex-=1
-            #self.game.load_level()
-
-    #undersøker om en treffer et skudd (Bullet)
 
     #Legger til / trekker fra velocity
     def addVelocity(self,velArray):
@@ -199,9 +189,11 @@ class KinematicBody(py.sprite.Sprite):
 
             self.dieSound.play()
             self.alive = False
-            if random.randint(0,100)>75:self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
-            self.game.updateEnemyLists()
             self.game.hitlist_update()
+
+
+            if random.randint(0,100)>85:self.game.pickups.append(HealthPickup([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], self.game))
+
 
 
         if self.frameForFrameShift>=int(self.size):
@@ -239,7 +231,7 @@ class Enemy(KinematicBody):
         self.dmg = damage
         self.dir = "Right"
         self.spriteList = self.animations["run"+self.dir]
-        self.circle_radius = seekArea/2
+        self.circle_radius = seekArea/1.25
 
         #Referanse til spiller
         self.player = player
@@ -247,7 +239,7 @@ class Enemy(KinematicBody):
 
         self.changeDir = 10
         self.despawnTimer = 150
-        self.name = random.choice(self.game.randomEnemyNames).upper()
+        self.name = random.choice(TILFELDIGNAVN).upper()
         self.game.hitlist_update()
 
 
@@ -293,7 +285,7 @@ class Enemy(KinematicBody):
             for i in range(int(20*self.game.partikkelfaktor)):
                 size = random.randint(3,8)
                 self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
-            self.game.hitlist_update()
+            self.game.hitlist_update(self)
 
 
 
@@ -305,7 +297,7 @@ class Enemy(KinematicBody):
         #om utenfor spillområdet -> dø
         if (self.rect.x<400 or self.rect.x>1400 or self.rect.y<0 or self.rect.y >1000) and self.alive:
             self.alive=False
-            self.game.hitlist_update()
+
             self.shouldDraw=False
 
         if self.alive:self.seekState()
@@ -411,7 +403,7 @@ class Player(KinematicBody):
         self.tutorialSurf = py.Surface((400,300),DOUBLEBUF| HWACCEL)
         self.tutorialUI()
         self.playerUI([0,0])
-
+        self.lastTouchedEnemyName = ""
         self.invincible = False
         self.invincibilityFrameAmount = 10
         self.invincibilityFrameNow = 0
@@ -432,7 +424,7 @@ class Player(KinematicBody):
                 #får fiende til å sprette motsatt retning
                 e.vel[0] = (self.rect.x - e.rect.x)/10
                 e.vel[1] = (self.rect.y - e.rect.y)/10
-
+                self.lastTouchedEnemyName = e.name
                 self.hitsound.play()
                 #legger til noen røde partikler som blod
                 for i in range(int(8*self.game.partikkelfaktor)):
@@ -446,6 +438,8 @@ class Player(KinematicBody):
         if hits and len(self.game.livingEnemies)==0:
             if self.hp+100<self.inithp:
                 self.hp+=100
+            elif self.hp+100 >= self.inithp:
+                self.hp = self.inithp
             nextRoom(self.game.currentRoomIndex+1, self)
             self.allocation_points +=1
             self.game.currentRoomIndex+=1
@@ -510,6 +504,7 @@ class Player(KinematicBody):
         if self.personalGun["recoil"]==0: self.personalGun["recoil"]=0.
 
         self.guns[0] = Gun(self, self.personalGun["dmg"], self.personalGun["recoil"], self.personalGun["fireRate"], self.personalGun["size"], self.game)
+
 
     #håndterer knapper for input av egen gunner
     def gunStatHandler(self,  mousePos):
@@ -868,10 +863,11 @@ class Game:
         self.collisionTiles, self.exits, self.entrances, self.bulletSprites, self.enemySprites = py.sprite.LayeredUpdates(),py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.Group()
 
         self.currentRoomIndex = 1
+        self.crosshair = Crosshair()
 
-        self.dia = Dialog(["YOOO KA SKJER?", "Tissefant"], "yeye")
 
-        self.randomEnemyNames = ["Rolf", "Frank", "Karl", "Fjomp", "Karsten", "Kornelius", "Albert", "Kurt", "Jens", "Ola", "Skalleknuseren", "Glont", "Sivert", "Jo-Bjo", "Rekesamleren", "Darth Reidar", "Kvantitativ metode", "Gnom", "Rasmus", "Fredrik", "Frederik", "Theodor", "Arun", "Bebb", "Tor", "Eirk", "Olav", "Silfo", "Ola", "Geir", "Walter Schreifels", "Ariana Grande", "Walter White", "Obama", "Donald Trump", "Ye West", "Supermann", "Glontikus", "Skillingsbolle", "Captain Jack Sparrow", "Luke Skywalker", "Meitemarkspiser"]
+
+
         self.enemyIcon = py.image.load("sprites/topdown_shooter_assets/enemyIcon.png").convert_alpha()
 
         self.volum = 1
@@ -881,13 +877,14 @@ class Game:
         self.player_hp_surf = py.Surface((leftSidePadding,200),DOUBLEBUF| HWACCEL)
         self.hitlist_surf = py.Surface((leftSidePadding,800))
         self.leftDisplay = py.Surface((leftSidePadding,1000),DOUBLEBUF| HWACCEL)
+        self.chosenDeathMessage = False
 
-        self.load_level()
 
         self.player = py.sprite.LayeredUpdates()
-        self.playerRef = Player([500,500], 10, 1000, self)
+        self.playerRef = Player([500,500], 10, 250, self)
         self.showHitbox = False
 
+        self.load_level()
         py.mixer.music.load("sounds/music.wav")
         py.mixer.music.set_volume(0.5)
         py.mixer.music.play(-1)
@@ -906,31 +903,41 @@ class Game:
         player_hp_label.draw(self.player_hp_surf)
         self.display("player")
 
-    def hitlist_update(self):
-        self.hitlist_surf.fill("pink")
-        enemy_list_label = Label([200, 10], 30, "HITLIST:", "black")
-        enemy_list_label.draw(self.hitlist_surf)
-
+    def place_hitlist_object(self, i):
         fromTop = 50
-        for i in range(len(self.livingEnemies)):
-            current_enemy = self.livingEnemies[i]
-            displayRect = py.rect.Rect(45,fromTop+102*i,310,100)
-            img = self.enemyIcon
-            img = py.transform.scale(img, [40*(self.enemies[i].scale-0.5),40*(self.enemies[i].scale-0.3)])
-            img_rect = img.get_rect()
-            img_rect.centerx, img_rect.centery= 85,fromTop+55+i*100
-            py.draw.rect(self.hitlist_surf,"beige", displayRect)
-            name = Label([200, 20+fromTop+102*i],15,f"{current_enemy.name}","black" )
-            type = Label([200, fromTop+35+102*i],13,f"Type: {current_enemy.type}","black" )
-            name.draw(self.hitlist_surf)
-            type.draw(self.hitlist_surf)
+        current_enemy = self.livingEnemies[i]
+        displayRect = py.rect.Rect(45,fromTop+102*i,310,100)
+        img = self.enemyIcon
+        img = py.transform.scale(img, [40*(self.enemies[i].scale-0.5),40*(self.enemies[i].scale-0.3)])
+        img_rect = img.get_rect()
+        img_rect.centerx, img_rect.centery= 85,fromTop+55+i*100
+        py.draw.rect(self.hitlist_surf,"beige", displayRect)
+        name = Label([200, 20+fromTop+102*i],15,f"{current_enemy.name}","black" )
+        type = Label([200, fromTop+35+102*i],13,f"Type: {current_enemy.type}","black" )
+        name.draw(self.hitlist_surf)
+        type.draw(self.hitlist_surf)
 
-            hp_bar = py.rect.Rect(120, fromTop+50+i*102,(current_enemy.hp/current_enemy.inithp)*200, 20)
-            hp = Label([150, fromTop+60+i*102],15, f"{current_enemy.hp} / {current_enemy.inithp}", "white")
-            py.draw.rect(self.hitlist_surf, "red", hp_bar)
-            hp.draw(self.hitlist_surf)
-            self.hitlist_surf.blit(img, img_rect)
-            self.display("hitlist")
+        hp_bar = py.rect.Rect(120, fromTop+50+i*102,(current_enemy.hp/current_enemy.inithp)*200, 20)
+        hp = Label([150, fromTop+60+i*102],15, f"{current_enemy.hp} / {current_enemy.inithp}", "white")
+        py.draw.rect(self.hitlist_surf, "red", hp_bar)
+        hp.draw(self.hitlist_surf)
+        self.hitlist_surf.blit(img, img_rect)
+        pass
+    def hitlist_update(self, target=False):
+        self.updateEnemyLists()
+        if not target:
+            self.hitlist_surf.fill("pink")
+            enemy_list_label = Label([200, 10], 30, "HITLIST:", "black")
+            enemy_list_label.draw(self.hitlist_surf)
+
+
+            for i in range(len(self.livingEnemies)):
+                self.place_hitlist_object(i)
+
+        else:
+            i=self.livingEnemies.index(target)
+            self.place_hitlist_object(i)
+        self.display("hitlist")
     def display(self, newSurf="None"):
 
         match newSurf:
@@ -957,7 +964,7 @@ class Game:
     def load_level(self):
         self.tiles, self.enemies, self.livingEnemies, self.pickups = [], [], [], []
         self.collisionTiles, self.exits, self.entrances, self.bulletSprites, self.enemySprites = py.sprite.LayeredUpdates(),py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.Group()
-
+        self.playerRef.bullets = []
 
         for i in range(0, len(rooms[self.currentRoomIndex]["map"])):
             for j in range(0, len(rooms[self.currentRoomIndex]["map"])):
@@ -1009,7 +1016,7 @@ class Game:
             self.enemies.append(_)
             self.livingEnemies.append(_)
             self.enemySprites.add(_)
-            self.display()
+        self.hitlist_update()
 
     def update_map(self):
         for t in self.tiles:
@@ -1068,18 +1075,31 @@ class Game:
         for b in bs: b.update(surf, mousePos)
         for l in ls: l.draw(surf)
 
+    def chooseDeathMessage(self):
+        return  Dialog(f"DINE SISTE ORD: '{random.choice(SISTEORD)}'", "black", [WW/2, WH/2+300])
+
     def gameOverScreen(self, surf, mousePos):
+        if not self.chosenDeathMessage:
+            self.chosenDeathMessage = self.chooseDeathMessage()
         bg = py.rect.Rect(0,0, WW, WH)
         py.draw.rect(surf, "pink", bg)
         title = Label([WW/2, WH/3], 40, "GAME OVER", "Black")
         title.draw(surf)
-        #viser romnummer
+
         romNummer = Label([WW/2, WH/2+200], 30, f"DU KOM TIL ROM {self.currentRoomIndex}", "blue")
         romNummer.draw(surf)
+        #viser fiende som drepte deg
+        sisteFiende = Label([WW/2, WH/2+250], 25, f"DREPT AV: {self.playerRef.lastTouchedEnemyName}", "red")
+        sisteFiende.draw(surf)
+        #viser tilfeldige siste ord
+        self.chosenDeathMessage.draw(surf)
+
+
+
         play_b = Button([WW/2, WH/2],[300,75], "RESTART", 0,False, "black", "white")
         if play_b.is_pressed(mousePos):
             self.state = "game"
-            self.playerRef = Player([500,500], 10, 1000, self)
+            self.playerRef = Player([500,500], 10, 250, self)
             self.currentRoomIndex = 1
             self.load_level()
 
@@ -1087,14 +1107,14 @@ class Game:
 
 
     def gameLoop(self, surf, mousePos):
-
+        if self.chosenDeathMessage: self.chosenDeathMessage=False
         keys = py.key.get_pressed()
         if keys[K_r]: self.showHitbox = False
         if keys[K_t]: self.showHitbox = True
         if keys[K_ESCAPE]: self.state="settings"
         self.draw_level(surf)
         self.updateEnemyLists()
-        self.display_draw(surf)
+
         pups = [p for p in self.pickups if p.lifetime>0]
 
         for e in self.enemies:
@@ -1103,6 +1123,7 @@ class Game:
         for p in pups:
             p.update(surf)
         self.playerRef.update(surf, py.mouse.get_pos())
+        self.display_draw(surf)
 
 
 
@@ -1123,32 +1144,33 @@ class Game:
                 exit()
 
         match self.state:
-            case "game": self.gameLoop(surf, mousePos)
-            case "intro": self.introScreen(surf,  mousePos)
-            case "gameOver": self.gameOverScreen(surf,  mousePos)
+            case "game":     self.gameLoop(      surf, mousePos)
+            case "intro":    self.introScreen(   surf, mousePos)
+            case "gameOver": self.gameOverScreen(surf, mousePos)
             case "settings": self.settingsScreen(surf, mousePos)
+        self.crosshair.update(surf, mousePos, events)
 
 
 
 
 class Dialog:
-    def __init__(self, text, char):
+    def __init__(self, text, char, pos):
         self.targetText = text
         self.currentText = ""
-        self.dialogIndex = 0
         self.char = char
-        self.font = returnFont(12)
+        self.pos = [pos[0], pos[1]]
+        self.font = returnFont(20)
 
 
     def talk(self):
-        if len(self.targetText[self.dialogIndex])>0: self.currentText += self.targetText[self.dialogIndex][0]
-        self.targetText[self.dialogIndex] = self.targetText[self.dialogIndex][1:]
+        if len(self.targetText)>0: self.currentText += self.targetText[0]
+        self.targetText = self.targetText[1:]
 
     def draw(self, surf):
         self.talk()
         t = self.font.render(str(self.currentText),False,"black")
         textRect = t.get_rect()
-        textRect.center = (200, 200)
+        textRect.center = (self.pos[0], self.pos[1])
         surf.blit(t, textRect)
 
 class Label:
@@ -1242,7 +1264,10 @@ class HealthPickup(Pickup):
     def update(self, surf):
         super().update(surf)
         if self.playerDetector()[0]:
-            self.playerDetector()[1].hp+=100
+            p = self.playerDetector()[1]
+            if p.hp+100<p.inithp: p.hp+=100
+            elif p.hp+100>p.inithp: p.hp=p.inithp
+
             self.game.player_hp_bar_update()
 
 
@@ -1252,8 +1277,14 @@ class Crosshair():
         self.image = py.image.load("sprites/crosshair_.png").convert_alpha()
         self.image = py.transform.scale(self.image, (40,40))
         self.rect = self.image.get_rect()
-    def update(self, surf, mousepos):
 
-        self.rect.center = mousepos
+    def moveMouse(self, mousePos):
+        self.rect.center = mousePos
+    def update(self, surf, mousepos, events):
+
+        for e in events:
+            if e.type== MOUSEMOTION: self.moveMouse(mousepos)
+        #make the cursor rotate around its own center
+
         surf.blit(self.image, self.rect)
 
