@@ -245,6 +245,7 @@ class Enemy(KinematicBody):
 
     #undersøker om spiller er innenfor en sirkel med definert radius gitt med seekArea
     def is_point_inside_circle(self):
+
         #bruker vektorregning for å finne avstand mellom spiller og fiende, returnerer True om distansen er mindre enn radiusen
         distance = math.sqrt((self.player.rect.x - (self.rect.x+30))**2 + (self.player.rect.y - (self.rect.y+30))**2)
         return distance < self.circle_radius
@@ -303,6 +304,7 @@ class Enemy(KinematicBody):
         if self.alive:self.seekState()
 
         self.draw(surf)
+
 
         if self.vel[0]<0:
             self.dir = "Left"
@@ -440,6 +442,7 @@ class Player(KinematicBody):
                 self.hp+=100
             elif self.hp+100 >= self.inithp:
                 self.hp = self.inithp
+            self.game.player_hp_bar_update()
             nextRoom(self.game.currentRoomIndex+1, self)
             self.allocation_points +=1
             self.game.currentRoomIndex+=1
@@ -881,7 +884,7 @@ class Game:
 
 
         self.player = py.sprite.LayeredUpdates()
-        self.playerRef = Player([500,500], 10, 250, self)
+        self.playerRef = Player([500,500], 10, 400, self)
         self.showHitbox = False
 
         self.load_level()
@@ -1099,7 +1102,7 @@ class Game:
         play_b = Button([WW/2, WH/2],[300,75], "RESTART", 0,False, "black", "white")
         if play_b.is_pressed(mousePos):
             self.state = "game"
-            self.playerRef = Player([500,500], 10, 250, self)
+            self.playerRef = Player([500,500], 10, 400, self)
             self.currentRoomIndex = 1
             self.load_level()
 

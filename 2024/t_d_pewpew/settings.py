@@ -19,15 +19,15 @@ SISTEORD = [
     "Plis ikke drep meg :(",
     "Eg angrer på alt",
     "Eg angrer på ingenting",
-    "Eg angrer på at eg ikkje angrer på alt",
+    "Eg angrer på at eg ikke angrer på alt",
     "Se pappa, trengte ikke lappen",
-    "Eg har ikkje lappen",
-    "Eg har ikkje bil",
+    "Eg har ikke lappen",
+    "Eg har ikke bil",
     "Faen, skulle coppet livsforsikring",
     "Si wallah du dreper meg",
     "Main character moment da",
     "Faen",
-    "Noen bør skrive bok om meg",
+    "Nokken bør skrive bok om meg",
     "Dette gikk ikke veien as",
     "Om noen hører meg, spill slowdive på begravelsen min",
     "Eg har ikkj råd til begravelse",
@@ -35,7 +35,9 @@ SISTEORD = [
     "Fakkass",
     "Fortjener dette lowkey as",
     "Slipper studielån iallefall",
-    "Søren saltklype"
+    "Søren saltklype",
+    "Fis",
+    "Fanken"
 
 ]
 
