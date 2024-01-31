@@ -30,15 +30,18 @@ SISTEORD = [
     "Nokken bør skrive bok om meg",
     "Dette gikk ikke veien as",
     "Om noen hører meg, spill slowdive på begravelsen min",
-    "Eg har ikkj råd til begravelse",
+    "Eg har ikke råd til begravelse",
     "Shit happends",
     "Fakkass",
     "Fortjener dette lowkey as",
     "Slipper studielån iallefall",
     "Søren saltklype",
     "Fis",
-    "Fanken"
+    "Fanken",
+    "Gresk yoghurt med revet gulrot er ganske og",
+    "Penispumpe"
 
 ]
 
-TILFELDIGNAVN = ["Rolf", "Frank", "Karl", "Fjomp", "Karsten", "Kornelius", "Albert", "Kurt", "Jens", "Ola", "Skalleknuseren", "Glont", "Sivert", "Jo-Bjo", "Rekesamleren", "Darth Reidar", "Kvantitativ metode", "Gnom", "Rasmus", "Fredrik", "Frederik", "Theodor", "Arun", "Bebb", "Tor", "Eirk", "Erickman", "Gelemauren", "Olav", "Silfo", "Ola", "Geir", "Walter Schreifels", "Ariana Grande", "Walter White", "Obama", "Donald Trump", "Ye West", "Supermann", "Glontikus", "Skillingsbolle", "Captain Jack Sparrow", "Luke Skywalker", "Meitemarkspiser", "Paul"]
+TILFELDIGNAVN = ["Rolf", "Frank", "Karl", "Fjomp", "Karsten", "Kornelius", "Albert", "Kurt", "Jens", "Ola", "Skalleknuseren", "Glont", "Sivert", "Jo-Bjo", "Rekesamleren", "Darth Reidar", "Kvantitativ metode", "Gnom", "Rasmus", "Fredrik", "Frederik", "Theodor", "Arun", "Bebb", "Tor", "Eirk", "Erickman", "Gelemauren", "Olav", "Silfo", "Ola", "Geir", "Walter Schreifels", "Ariana Grande", "Walter White", "Obama", "Donald Trump", "Ye West", "Supermann", "Glontikus", "Skillingsbolle", "Captain Jack Sparrow", "Luke Skywalker", "Meitemarkspiser", "Paul"
+                 "Ass Kill"]

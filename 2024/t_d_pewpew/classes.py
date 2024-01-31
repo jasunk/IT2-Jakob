@@ -83,6 +83,7 @@ class KinematicBody(py.sprite.Sprite):
         self.bulletSprites = py.sprite.Group()
         #gir tilgang til spillogikk
         self.game = game
+        self.bulletsToCollideWith = self.game.bulletSprites if isinstance(self, Enemy) else self.game.enemyBullets
 
         #Felles lyder for kinematicbodies
         self.hitsound = py.mixer.Sound("sounds/hit.wav")
@@ -158,6 +159,29 @@ class KinematicBody(py.sprite.Sprite):
         for b in self.bullets:
             b.update(surf)
 
+    def isTouchingBullet(self):
+        print(self.bulletsToCollideWith)
+        hits = py.sprite.spritecollide(self, self.bulletsToCollideWith, False)
+
+        for h in [h for h in hits if h.canHit]:
+
+            self.hitsound.play()
+            self.addVelocity([h.vel[0]/self.size, h.vel[1]/self.size])
+            self.hp -= h.dmg
+            if isinstance(self, Player):self.game.player_hp_bar_update()
+            if h.dmg >=50:
+                h.dmg *= 0.8
+            else:
+                h.canHit = False
+                h.lifetime=-1
+                h.dmg=0
+
+            #legger til noen røde partikler som blod
+            for i in range(int(20*self.game.partikkelfaktor)):
+                size = random.randint(3,8)
+                self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
+            if isinstance(self,Enemy):self.game.hitlist_update(self)
+
 
     #tegner seg selv
     def draw(self, surf):
@@ -185,6 +209,7 @@ class KinematicBody(py.sprite.Sprite):
 
         if self.alive:
             self.move()
+            self.isTouchingBullet()
         if self.hp <=0 and self.alive:
 
             self.dieSound.play()
@@ -266,27 +291,6 @@ class Enemy(KinematicBody):
         if (self.vel[0] and self.vel[1]) == 0:
             self.frame=0
 
-    def isTouchingBullet(self):
-
-        hits = py.sprite.spritecollide(self, self.game.bulletSprites, False)
-
-        for h in [h for h in hits if h.canHit]:
-
-            self.hitsound.play()
-            self.addVelocity([h.vel[0]/self.size, h.vel[1]/self.size])
-            self.hp -= h.dmg
-            if h.dmg >=50:
-                h.dmg *= 0.8
-            else:
-                h.canHit = False
-                h.lifetime=-1
-                h.dmg=0
-
-            #legger til noen røde partikler som blod
-            for i in range(int(20*self.game.partikkelfaktor)):
-                size = random.randint(3,8)
-                self.particles.append(Particle([size,size],[self.rect.x+30, self.rect.y+30], [random.randint(-6,6),random.randint(-6,6)],"red",random.randint(10,20) ))
-            self.game.hitlist_update(self)
 
 
 
@@ -294,7 +298,7 @@ class Enemy(KinematicBody):
 
     #generell logikk
     def update(self, surf):
-        if self.alive:self.isTouchingBullet()
+
         #om utenfor spillområdet -> dø
         if (self.rect.x<400 or self.rect.x>1400 or self.rect.y<0 or self.rect.y >1000) and self.alive:
             self.alive=False
@@ -355,6 +359,48 @@ class RunEnemy(Enemy):
         super().seekState()
         if self.is_point_inside_circle():
             self.runState()
+
+class ShootingEnemy(RunEnemy):
+    def __init__(self,pos, speed, health, damage, seekArea, player,game, size=1.3 ):
+        super().__init__(pos, speed, health, damage, seekArea, player,game, size)
+        self.type = "SHOOTER"
+        self.shootCooldown = 0
+        self.shootCooldownSTD = 100
+        self.shootSound = py.mixer.Sound("sounds/shoot_def.wav")
+        self.shootSound.set_volume(0.3)
+        self.gun = Gun(self,1,0,0,[self.size, self.size],self.game)
+
+    def shoot(self):
+
+
+        if self.shootCooldown<=0:
+            self.shootCooldown=self.shootCooldownSTD
+            self.shootSound.play()
+
+            createvector = [self.player.rect.x-self.rect.x, self.player.rect.y-self.rect.y]
+            vectorLength = math.sqrt((createvector[0]**2 + createvector[1]**2)/2)
+            shotVel = 12
+            _ = Bullet([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], [(createvector[0]/vectorLength)*shotVel, (createvector[1]/vectorLength)*shotVel], self.dmg,1.5, self.game)
+            self.game.enemyBullets.add(_)
+            self.bullets.append(_)
+
+            #lager pewpew-ild
+            for i in range(int(random.randint(5,14)*self.game.partikkelfaktor)):
+                self.particles.append(Particle([5*self.size,5*self.size],[self.rect.x, self.rect.y],[(createvector[0]/(vectorLength/10)+random.randint(-7,7)), (createvector[1]/(vectorLength/5))+random.randint(-7,7)], "yellow", 7, 0.65))
+                self.particles.append(Particle([4*self.size,4*self.size],[self.rect.x, self.rect.y],[(createvector[0]/(vectorLength/5)+random.randint(-3,3)), (createvector[1]/(vectorLength/5))+random.randint(-3,3)], "red", 5, 0.8))
+                self.particles.append(Particle([5*self.size,5*self.size],[self.rect.x, self.rect.y],[(createvector[0]/(vectorLength/3)+random.randint(-3,3)), (createvector[1]/(vectorLength/3))+random.randint(-3,3)], "black", 5, 0.8))
+
+        else:
+            self.shootCooldown-=1
+    def seekState(self):
+
+        super().seekState()
+        if not self.is_point_inside_circle():
+            self.shoot()
+
+    def update(self, surf):
+        super().update(surf)
+        self.gun.update(surf, [self.player.rect.x, self.player.rect.y])
 
 
 #Spillerklasse
@@ -714,6 +760,7 @@ class Gun:
             _ = Bullet(self.currentPos,[vector[0]/(lengdeDia/bulletSpeedFactor), vector[1]/(lengdeDia/bulletSpeedFactor)],self.dmg, self.size, self.game )
 
             self.parent.bullets.append(_)
+            self.game.bulletSprites.add(_)
 
             #recoil
             self.currentPos[0] += vector[0]/(lengdeDia/self.recoil)
@@ -734,7 +781,8 @@ class Gun:
 
     def update(self, surf, mouse_pos):
         if self.active:
-            if py.mouse.get_pressed()[0]: self.shoot(mouse_pos)
+            if isinstance(self.parent, Player):
+                if py.mouse.get_pressed()[0]: self.shoot(mouse_pos)
             self.positionSelf()
             self.update_rotation(mouse_pos)
             self.draw(surf)
@@ -790,7 +838,7 @@ class Bullet(Particle):
         self.game = game
         self.canHit = True
         self.sound = py.mixer.Sound("sounds/hitwall.wav")
-        self.game.bulletSprites.add(self)
+
         self.bounceAmount = 3
 
     def wallhit(self, dir="none"):
@@ -863,7 +911,7 @@ class Game:
 
         self.state = "intro"
         self.tiles, self.enemies, self.livingEnemies, self.pickups = [], [], [], []
-        self.collisionTiles, self.exits, self.entrances, self.bulletSprites, self.enemySprites = py.sprite.LayeredUpdates(),py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.Group()
+        self.collisionTiles, self.exits, self.entrances, self.bulletSprites, self.enemyBullets, self.enemySprites = py.sprite.LayeredUpdates(),py.sprite.LayeredUpdates(),py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.LayeredUpdates(), py.sprite.Group()
 
         self.currentRoomIndex = 1
         self.crosshair = Crosshair()
@@ -990,19 +1038,21 @@ class Game:
     def chooseRandomEnemy(self,p, speedRange, healthRange, damage):
         _ = random.randrange(0,100)
 
-        if _<75:
+        if _<45:
             return ChaseEnemy(
                 [random.randint(100,WH-150),random.randint(100,WH-150)],
                 random.randrange(speedRange[0], speedRange[1]),
                 random.randint(healthRange[0], healthRange[1])+self.currentRoomIndex,
                 damage,500,p,self)
 
-        elif _<100:
+        elif _<70:
             return RunEnemy(
                 [random.randint(100,WH-150),random.randint(100,WH-150)],
                 random.randrange(speedRange[0], speedRange[1]),
                 random.randint(healthRange[0], healthRange[1])+self.currentRoomIndex,
                 damage,500,p,self)
+        elif _<100:
+            return ShootingEnemy([random.randint(100,WH-150),random.randint(100,WH-150)],random.randrange(speedRange[0], speedRange[1]),random.randint(healthRange[0], healthRange[1])+self.currentRoomIndex,damage,500,p,self,1.4)
         else: return
 
     def spawnEnemies(self, p, amount, speedRange, healthRange, damage, bigSpawnChance):
@@ -1164,7 +1214,6 @@ class Dialog:
         self.pos = [pos[0], pos[1]]
         self.font = returnFont(20)
 
-
     def talk(self):
         if len(self.targetText)>0: self.currentText += self.targetText[0]
         self.targetText = self.targetText[1:]
@@ -1190,10 +1239,6 @@ class Label:
     def draw(self, surf):
 
         surf.blit(self.text, self.textRect)
-
-
-
-
 
 class Button(Label):
     def __init__(self, pos, size, displayText, sound_vibe = 0,UI=False, inactiveColor="beige", hoverColor="gray"):
