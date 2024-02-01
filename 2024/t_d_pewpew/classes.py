@@ -380,7 +380,7 @@ class ShootingEnemy(RunEnemy):
             createvector = [self.player.rect.x-self.rect.x, self.player.rect.y-self.rect.y]
             vectorLength = math.sqrt((createvector[0]**2 + createvector[1]**2)/2)
             shotVel = 12
-            _ = Bullet([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], [(createvector[0]/vectorLength)*shotVel, (createvector[1]/vectorLength)*shotVel], self.dmg,1.5, self.game)
+            _ = Bullet([self.rect.x+self.rect.width/2, self.rect.y+self.rect.height/2], [(createvector[0]/vectorLength)*shotVel, (createvector[1]/vectorLength)*shotVel], self.dmg,1.5, self.game, True)
             self.game.enemyBullets.add(_)
             self.bullets.append(_)
 
@@ -827,8 +827,9 @@ class Particle(py.sprite.Sprite):
 
 #versjon av partikkel med andre verdier
 class Bullet(Particle):
-    def __init__(self, pos, vel, dmg, size, game):
-        super().__init__([1,1], pos, vel, "black", 150, 0.99,"sprites/topdown_shooter_assets/sBullet.png")
+    def __init__(self, pos, vel, dmg, size, game, enemy=False):
+        if enemy:super().__init__([1,1], pos, vel, "black", 150, 0.99,"sprites/topdown_shooter_assets/eBullet.png")
+        else:    super().__init__([1,1], pos, vel, "black", 150, 0.99,"sprites/topdown_shooter_assets/sBullet.png")
 
         self.dmg = dmg
 
@@ -932,7 +933,7 @@ class Game:
 
 
         self.player = py.sprite.LayeredUpdates()
-        self.playerRef = Player([500,500], 10, 400, self)
+        self.playerRef = Player([500,500], 10, 500, self)
         self.showHitbox = False
 
         self.load_level()
@@ -1152,7 +1153,7 @@ class Game:
         play_b = Button([WW/2, WH/2],[300,75], "RESTART", 0,False, "black", "white")
         if play_b.is_pressed(mousePos):
             self.state = "game"
-            self.playerRef = Player([500,500], 10, 400, self)
+            self.playerRef = Player([500,500], 10, 500, self)
             self.currentRoomIndex = 1
             self.load_level()
 
