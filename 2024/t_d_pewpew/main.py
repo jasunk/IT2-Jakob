@@ -4,6 +4,7 @@ from pygame.locals import *
 from classes import *
 import cProfile
 from settings import *
+from pysegmenting import test
 
 py.init()
 surf = py.display.set_mode((WW, WH),flags, 16)
